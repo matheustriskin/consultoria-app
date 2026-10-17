@@ -1,5 +1,5 @@
-// Service Worker para Consultoria Esportiva PWA - v3
-const CACHE_NAME = 'consultoria-v3';
+// Service Worker para Consultoria Esportiva PWA - v4
+const CACHE_NAME = 'consultoria-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -469,74 +469,136 @@ class DatabaseManager {
     return TACO_FOOD_DATABASE.find(f => f.id === id);
   }
 
-  async syncWithGoogleAppsScript(apiUrl) {
+  async syncWithGoogleSheetsGViz(spreadsheetId = "1MrWTVNZumGQDIq04QSOEMbSqxkc5scWFf4Ik6qRgY-w") {
     try {
-      const resp = await fetch(apiUrl);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      if (data.status === "success" && Array.isArray(data.alunos)) {
-        const currentData = this.get();
-        // Merge or replace students
-        const formattedStudents = data.alunos.map(aluno => {
-          const id = "aluno_" + aluno.nome.toLowerCase().replace(/\s+/g, '_').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-          const existing = currentData.students.find(s => s.id === id);
-          return {
-            id: id,
-            nome: aluno.nome,
-            email: aluno.email,
-            whatsapp: aluno.telefone,
-            idade: aluno.idade,
-            genero: aluno.genero,
-            peso: aluno.peso,
-            altura: aluno.altura,
-            imc: aluno.imc,
-            classificacaoImc: aluno.imc >= 30 ? "Obesidade" : aluno.imc >= 25 ? "Sobrepeso" : "Eutrófico",
-            metaPeso: aluno.metaPeso,
-            objetivo: aluno.objetivo,
-            nivelTreino: "Iniciante",
-            profissao: "Geral",
-            nivelTrabalho: "Moderado",
-            tmb: aluno.tmb,
-            get: aluno.get,
-            metaCalorias: aluno.metasNutricionais.calorias,
-            macros: {
-              prot: aluno.metasNutricionais.proteinas,
-              carb: aluno.metasNutricionais.carboidratos,
-              fat: aluno.metasNutricionais.gorduras,
-              agua: aluno.metasNutricionais.agua
-            },
-            financeiro: existing ? existing.financeiro : {
-              plano: "Consultoria Mensal",
-              valor: 150.00,
-              vencimento: aluno.financeiro.vencimento,
-              status: aluno.financeiro.status,
-              metodo: "Pix",
-              historico: []
-            },
-            treinoAtual: existing ? existing.treinoAtual : {
-              nome: "Treino Personalizado 3x",
-              dias: [
-                {
-                  dia: "Treino A - Superiores & Força",
-                  exercicios: [
-                    { id: "supino_reto", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false },
-                    { id: "puxada_alta", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false }
-                  ]
-                }
-              ]
-            },
-            diarioHoje: existing ? existing.diarioHoje : []
-          };
-        });
+      const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const text = await res.text();
+      const match = text.match(/google\.visualization\.Query\.setResponse\((.*)\);/s);
+      if (!match) throw new Error("Formato de resposta inválido do Google Sheets.");
+      const parsed = JSON.parse(match[1]);
+      if (!parsed.table || !parsed.table.rows) return { success: false, error: "Sem dados retornados." };
 
-        currentData.students = formattedStudents;
+      const rows = parsed.table.rows;
+      const currentData = this.get();
+      const updatedStudents = [];
+
+      rows.forEach((r, idx) => {
+        const cells = r.c ? r.c.map(c => (c && c.v !== undefined && c.v !== null) ? c.v : '') : [];
+        if (cells.length < 3) return;
+
+        const nome = String(cells[2] || '').trim();
+        if (!nome || nome.toLowerCase() === 'nome completo') return;
+
+        const email = String(cells[1] || '').trim();
+        const whatsapp = String(cells[3] || '').replace('.0', '').trim();
+        const genero = String(cells[5] || 'Masculino');
+        const peso = parseFloat(cells[8]) || 70;
+        let altura = parseFloat(cells[9]) || 170;
+        if (altura > 0 && altura < 3) altura = Math.round(altura * 100);
+        const metaPeso = String(cells[10] || '').replace('.0', '');
+        const objetivo = String(cells[13] || 'Emagrecimento / Definição');
+        const incomodo = String(cells[14] || '');
+        const patologias = String(cells[16] || '');
+        const medicamentos = String(cells[17] || '');
+        const lesoes = String(cells[18] || '');
+        const experiencia = String(cells[21] || 'Iniciante');
+        const localTreino = String(cells[24] || 'Academia');
+        const sono = String(cells[36] || '6 a 7 horas');
+
+        const alturaM = altura / 100;
+        const imc = (peso > 0 && alturaM > 0) ? +(peso / (alturaM * alturaM)).toFixed(2) : 0;
+        let classImc = "Peso Normal";
+        if (imc >= 40) classImc = "Obesidade Grau 3 (Mórbida)";
+        else if (imc >= 35) classImc = "Obesidade Grau 2";
+        else if (imc >= 30) classImc = "Obesidade Grau 1";
+        else if (imc >= 25) classImc = "Sobrepeso";
+
+        // Idade estimada
+        const isMasc = genero.toLowerCase().includes('masc');
+        const tmb = Math.round((10 * peso) + (6.25 * altura) - (5 * 28) + (isMasc ? 5 : -161));
+        const get = Math.round(tmb * 1.35);
+        let calorias = get;
+        let prot = Math.round(peso * 1.6);
+        let fat = Math.round(peso * 0.7);
+        if (objetivo.toLowerCase().includes('hipertrofia')) {
+          calorias = Math.round(get + 250);
+          prot = Math.round(peso * 2.0);
+        } else {
+          calorias = Math.round(get - 500);
+        }
+        const carb = Math.max(50, Math.round((calorias - (prot * 4 + fat * 9)) / 4));
+
+        const studentId = "aluno_" + nome.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        const existing = currentData.students ? currentData.students.find(s => s.id === studentId) : null;
+
+        updatedStudents.push({
+          id: studentId,
+          nome: nome,
+          email: email,
+          whatsapp: whatsapp,
+          idade: 28,
+          genero: genero,
+          peso: peso,
+          altura: altura,
+          imc: imc,
+          classificacaoImc: classImc,
+          metaPeso: metaPeso ? `Chegar a ${metaPeso} kg` : "Não informada",
+          objetivo: objetivo,
+          nivelTreino: experiencia,
+          profissao: String(cells[6] || 'Não informado'),
+          nivelTrabalho: String(cells[7] || 'Moderado'),
+          patologias: patologias,
+          medicamentos: medicamentos,
+          lesoes: lesoes,
+          tmb: tmb,
+          get: get,
+          metaCalorias: calorias,
+          macros: {
+            prot: prot,
+            carb: carb,
+            fat: fat,
+            agua: +(peso * 0.035).toFixed(1)
+          },
+          financeiro: existing ? existing.financeiro : {
+            plano: "Consultoria Mensal",
+            valor: 150.00,
+            vencimento: "2026-11-10",
+            status: "em_dia",
+            metodo: "Pix",
+            historico: []
+          },
+          treinoAtual: existing ? existing.treinoAtual : {
+            nome: localTreino.toLowerCase().includes('casa') ? 'Treino em Casa 3x' : 'Treino Academia 3x',
+            dias: [
+              {
+                dia: "Treino A - Superiores & Força",
+                exercicios: [
+                  { id: "supino_reto", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false },
+                  { id: "puxada_alta", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false }
+                ]
+              },
+              {
+                dia: "Treino B - Membros Inferiores Protegidos",
+                exercicios: [
+                  { id: "leg_press_45", series: 4, reps: "12 a 15", cargaKg: 0, concluido: false }
+                ]
+              }
+            ]
+          },
+          diarioHoje: existing ? existing.diarioHoje : []
+        });
+      });
+
+      if (updatedStudents.length > 0) {
+        currentData.students = updatedStudents;
         this.save(currentData);
-        return { success: true, count: formattedStudents.length };
-      } else {
-        throw new Error(data.message || "Formato de dados inválido.");
+        return { success: true, count: updatedStudents.length };
       }
+      return { success: false, error: "Nenhum aluno válido encontrado." };
     } catch (err) {
-      console.error("Erro na sincronização:", err);
+      console.warn("Falha no sync com GViz:", err);
       return { success: false, error: err.message };
     }
   }

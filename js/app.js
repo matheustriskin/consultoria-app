@@ -10,9 +10,25 @@ const App = {
   restTimerInterval: null,
   restTimeSeconds: 60,
 
-  init() {
+  async init() {
     this.bindEvents();
     this.render();
+    // SINCRONIZAÇÃO AUTOMÁTICA EM TEMPO REAL AO ABRIR O APP
+    await this.autoSyncGoogleSheets();
+    // Re-sincronizar se o usuário voltar para a aba ou desbloquear o celular
+    window.addEventListener("focus", () => this.autoSyncGoogleSheets());
+    // Polling a cada 25 segundos
+    setInterval(() => this.autoSyncGoogleSheets(false), 25000);
+  },
+
+  async autoSyncGoogleSheets(showToast = true) {
+    const res = await db.syncWithGoogleSheetsGViz();
+    if (res.success) {
+      if (showToast) {
+        this.mostrarToast(`⚡ ${res.count} alunos sincronizados com a nuvem do Google!`, "success");
+      }
+      this.render();
+    }
   },
 
   bindEvents() {
@@ -617,24 +633,18 @@ const App = {
         </div>
 
         <div style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px;">
-          Conecte o aplicativo diretamente com o Google Forms e a Planilha do Google Drive para importar automaticamente os novos alunos e suas anamneses.
+          O aplicativo já está configurado para ler automaticamente a sua Planilha do Google Forms na nuvem em tempo real.
         </div>
 
         <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
-          <label style="font-size: 0.82rem; font-weight: 700; color: #60a5fa; display: block; margin-bottom: 6px;">
-            URL do Web App Google Apps Script / Endpoint JSON:
-          </label>
-          <input type="text" id="syncApiUrl" class="food-search-input" style="font-size: 0.82rem; margin-bottom: 10px;" 
-                 placeholder="Cole a URL de implantação da Web do Apps Script"
-                 value="${localStorage.getItem('sync_api_url') || ''}">
-          <button class="btn btn-sm" style="width: 100%; justify-content: center;" onclick="App.executarSincronizacaoApi()">
-            ⚡ Sincronizar via Nuvem do Google
+          <button class="btn btn-sm btn-pix" style="width: 100%; justify-content: center; font-size: 0.95rem; padding: 14px;" onclick="App.executarSincronizacaoPlanilha()">
+            ⚡ Forçar Sincronização Agora com a Planilha
           </button>
         </div>
 
         <div style="display: flex; gap: 10px; margin-top: 14px;">
-          <button class="btn btn-sm btn-pix" style="flex: 1; justify-content: center;" onclick="App.restaurarAlunosOriginais()">
-            🔄 Recarregar Alunos Iniciais (${students.length})
+          <button class="btn btn-sm" style="flex: 1; justify-content: center;" onclick="App.restaurarAlunosOriginais()">
+            🔄 Restaurar Iniciais (${students.length})
           </button>
           <button class="btn btn-sm" style="background: rgba(239, 68, 68, 0.15); color: #f87171; justify-content: center;" onclick="App.fecharModalSincronizacao()">
             Fechar
@@ -650,24 +660,15 @@ const App = {
     if (modal) modal.style.display = "none";
   },
 
-  async executarSincronizacaoApi() {
-    const input = document.getElementById("syncApiUrl");
-    const url = input ? input.value.trim() : "";
-    if (!url) {
-      this.mostrarToast("Insira a URL do Web App do Apps Script", "info");
-      return;
-    }
-
-    localStorage.setItem("sync_api_url", url);
-    this.mostrarToast("Sincronizando com o Google Drive...", "info");
-
-    const res = await db.syncWithGoogleAppsScript(url);
+  async executarSincronizacaoPlanilha() {
+    this.mostrarToast("Buscando respostas atualizadas na planilha...", "info");
+    const res = await db.syncWithGoogleSheetsGViz();
     if (res.success) {
       this.fecharModalSincronizacao();
-      this.mostrarToast(`✅ ${res.count} alunos sincronizados com sucesso!`, "success");
+      this.mostrarToast(`✅ ${res.count} alunos atualizados com sucesso da nuvem!`, "success");
       this.render();
     } else {
-      this.mostrarToast(`⚠️ Erro: ${res.error}`, "info");
+      this.mostrarToast(`⚠️ Erro na sincronização: ${res.error}`, "info");
     }
   },
 
