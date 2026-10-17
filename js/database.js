@@ -335,13 +335,66 @@ const INITIAL_STUDENTS = [
       ]
     },
     diarioHoje: []
+  },
+  {
+    id: "aluno_raianderson",
+    nome: "Raianderson",
+    email: "matheus.smarciel@gmail.com",
+    whatsapp: "11986076369",
+    idade: 28,
+    genero: "Masculino",
+    peso: 120,
+    altura: 180,
+    imc: 37.04,
+    classificacaoImc: "Obesidade Grau 2",
+    metaPeso: "Chegar a 90 kg (-30 kg)",
+    objetivo: "Emagrecimento / Definição Muscular",
+    nivelTreino: "Iniciante (Menos de 6 meses)",
+    profissao: "Tecnologia",
+    nivelTrabalho: "Sedentário",
+    tmb: 2190,
+    get: 2956,
+    metaCalorias: 2400,
+    macros: { prot: 180, carb: 260, fat: 70, agua: 4.2 },
+    financeiro: {
+      plano: "Consultoria Mensal",
+      valor: 200.00,
+      vencimento: "2026-11-17",
+      status: "em_dia",
+      metodo: "Pix",
+      historico: [
+        { data: "2026-10-17", valor: 200.00, status: "Pago", comprovante: "PIX-RAIANDERSON" }
+      ]
+    },
+    treinoAtual: {
+      nome: "Treino Academia 3x (Baixo Impacto Articular)",
+      dias: [
+        {
+          dia: "Treino A - Superiores (Peitoral & Costas)",
+          exercicios: [
+            { id: "supino_reto", series: 4, reps: "10 a 12", cargaKg: 40, concluido: false },
+            { id: "puxada_alta", series: 4, reps: "10 a 12", cargaKg: 45, concluido: false }
+          ]
+        },
+        {
+          dia: "Treino B - Membros Inferiores Protegidos (Evitar impacto)",
+          exercicios: [
+            { id: "leg_press_45", series: 4, reps: "12 a 15", cargaKg: 80, concluido: false }
+          ]
+        }
+      ]
+    },
+    diarioHoje: [
+      { refeicao: "Café da Manhã", alimentoId: "ovos_mexidos", qtd: 3, calorias: 210, prot: 18, carb: 2, fat: 15 },
+      { refeicao: "Almoço", alimentoId: "peito_frango_grelhado", qtd: 2, calorias: 320, prot: 62, carb: 0, fat: 6 }
+    ]
   }
 ];
 
 // Gerenciador de Estado no LocalStorage
 class DatabaseManager {
   constructor() {
-    this.storageKey = "consultoria_fitness_db_v1";
+    this.storageKey = "consultoria_fitness_db_v2";
     this.init();
   }
 
