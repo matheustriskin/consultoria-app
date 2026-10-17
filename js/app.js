@@ -5,7 +5,7 @@
  */
 
 const PIX_KEY = "7182305941";
-const PROFESSOR_EMAILS = ["raianmateus10@gmail.com", "matheus.smarciel@gmail.com"];
+const PROFESSOR_EMAIL = "raianmateus10@gmail.com";
 const DEFAULT_STUDENT_PASSWORD = "raian123";
 const FORM_URL = "https://docs.google.com/forms/d/1wmTmHHfaVZuiZcM1jtSHOmZGmr6PZv1tt2d_vMpIz08/viewform";
 
@@ -35,6 +35,14 @@ const App = {
     if (raw) {
       try {
         this.currentUser = JSON.parse(raw);
+        // Garantir que APENAS raianmateus10@gmail.com seja professor
+        if (this.currentUser.role === "professor" && this.currentUser.email.toLowerCase() !== PROFESSOR_EMAIL) {
+          localStorage.removeItem("auth_user");
+          this.currentUser = null;
+          this.currentRole = "aluno";
+          return;
+        }
+
         this.currentRole = this.currentUser.role;
         if (this.currentRole === "aluno") {
           this.activeStudentId = this.currentUser.studentId;
@@ -90,8 +98,8 @@ const App = {
       return;
     }
 
-    // 1. Verificação se é o Professor Raian Bispo (ou desenvolvedor de suporte)
-    if (PROFESSOR_EMAILS.includes(email)) {
+    // 1. Verificação se é o Professor Raian Bispo (ÚNICO ACESSO FULL)
+    if (email === PROFESSOR_EMAIL) {
       const savedProfPwd = localStorage.getItem("professor_pwd") || "raian123";
       if (senha === savedProfPwd || senha === "raian123" || senha === "raian2026" || senha === "admin") {
         this.currentUser = {
