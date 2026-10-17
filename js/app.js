@@ -261,8 +261,11 @@ const App = {
         container.innerHTML = this.renderExerciseLibraryView();
       } else if (this.activeTab === "treino_hoje_preview") {
         container.innerHTML = `
-          <div style="margin-bottom: 16px;">
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <button class="btn btn-sm" onclick="App.setTab('alunos')">← Voltar à Lista de Alunos</button>
+            <button class="btn btn-sm" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); border: 1px solid #3b82f6;" onclick="App.abrirEditorTreino('${student ? student.id : ''}')">
+              ✏️ Editar Treino deste Aluno
+            </button>
           </div>
           ${this.renderStudentWorkoutView(student)}
         `;
@@ -395,7 +398,10 @@ const App = {
               🎯 Objetivo: ${s.objetivo} (${s.nivelTreino})
             </p>
           </div>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-sm" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); border: 1px solid #3b82f6;" onclick="App.abrirEditorTreino('${s.id}')">
+              ✏️ Editar Treino
+            </button>
             <button class="btn btn-sm" onclick="App.verComoAluno('${s.id}')">
               📱 Ver Como Este Aluno
             </button>
@@ -548,6 +554,8 @@ const App = {
     }
 
     const treino = student.treinoAtual;
+    const isProfessor = this.currentRole === "professor" && this.currentUser && this.currentUser.email.toLowerCase() === PROFESSOR_EMAIL;
+
     let diasHtml = treino.dias.map((d, dIdx) => `
       <div class="workout-day-card">
         <div class="workout-day-header">
@@ -560,15 +568,23 @@ const App = {
             const libEx = db.getExerciseById(ex.id) || { nome: ex.id, grupo: "Geral", execucao: "" };
             return `
               <div class="exercise-item ${ex.concluido ? 'completed' : ''}">
-                <div class="exercise-info">
-                  <div class="exercise-name">${libEx.nome}</div>
-                  <div class="exercise-meta">
-                    <strong>${ex.series} séries</strong> × <strong>${ex.reps} reps</strong>
-                    ${ex.cargaKg ? `• <span style="color: #60a5fa;">${ex.cargaKg} kg</span>` : ''}
+                <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
+                  <img src="assets/exercises/${ex.id}.gif" 
+                       alt="${libEx.nome}" 
+                       onerror="this.style.display='none'" 
+                       style="width: 52px; height: 52px; border-radius: 8px; object-fit: cover; background: #000; border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; cursor: pointer;"
+                       onclick="App.abrirModalExercicio('${ex.id}')"
+                       title="Clique para ver animação do movimento">
+                  <div class="exercise-info" style="min-width: 0;">
+                    <div class="exercise-name" style="cursor: pointer;" onclick="App.abrirModalExercicio('${ex.id}')">${libEx.nome}</div>
+                    <div class="exercise-meta">
+                      <strong>${ex.series} séries</strong> × <strong>${ex.reps} reps</strong>
+                      ${ex.cargaKg ? `• <span style="color: #60a5fa; font-weight: 700;">${ex.cargaKg} kg</span>` : ''}
+                    </div>
                   </div>
                 </div>
 
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
                   <button class="btn btn-sm" style="background: rgba(255,255,255,0.06); padding: 8px 12px;" onclick="App.abrirModalExercicio('${ex.id}')">
                     👁️ Ver Movimento
                   </button>
@@ -593,8 +609,15 @@ const App = {
               Prescrito exclusivamente para <strong>${student.nome}</strong> • Foco: ${student.objetivo}
             </p>
           </div>
-          <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); padding: 8px 16px; border-radius: var(--radius-md); font-size: 0.85rem; color: #60a5fa; font-weight: 700;">
-            🔥 "A Meta é Logo Ali"
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            ${isProfessor ? `
+              <button class="btn btn-sm" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); border: 1px solid #3b82f6;" onclick="App.abrirEditorTreino('${student.id}')">
+                ✏️ Editar Treino
+              </button>
+            ` : ''}
+            <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); padding: 8px 16px; border-radius: var(--radius-md); font-size: 0.85rem; color: #60a5fa; font-weight: 700;">
+              🔥 "A Meta é Logo Ali"
+            </div>
           </div>
         </div>
 
@@ -813,18 +836,42 @@ const App = {
     return `
       <div class="card">
         <div class="card-title">
-          <span>Biblioteca Biomecânica de Exercícios (${list.length})</span>
+          <span>🏋️ Biblioteca Biomecânica de Exercícios (${list.length})</span>
         </div>
-        <div class="grid-exercises" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 16px;">
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
+          Demonstração com animações em loop dos movimentos e orientações posturais de execução.
+        </p>
+        <div class="grid-exercises" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 18px;">
           ${list.map(ex => `
-            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; cursor: pointer;" onclick="App.abrirModalExercicio('${ex.id}')">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h4 style="font-size: 1rem; font-weight: 700;">${ex.nome}</h4>
-                <span style="font-size: 0.75rem; background: rgba(59,130,246,0.15); color: #60a5fa; padding: 2px 8px; border-radius: 4px;">${ex.grupo}</span>
+            <div class="card" style="padding: 12px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; border: 1px solid rgba(255,255,255,0.08); background: rgba(15, 23, 42, 0.6); display: flex; flex-direction: column;" 
+                 onmouseover="this.style.borderColor='#3b82f6'; this.style.transform='translateY(-2px)';" 
+                 onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'; this.style.transform='none';"
+                 onclick="App.abrirModalExercicio('${ex.id}')">
+              
+              <div style="width: 100%; height: 160px; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative;">
+                <img src="assets/exercises/${ex.id}.gif" 
+                     alt="${ex.nome}" 
+                     loading="lazy"
+                     style="width: 100%; height: 100%; object-fit: contain;"
+                     onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='block';">
+                <div style="display: none; padding: 10px; width: 100%;">
+                  ${ExerciseVisuals.getSvgForExercise(ex.svgType)}
+                </div>
+                <span style="position: absolute; top: 8px; right: 8px; background: rgba(37,99,235,0.85); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; backdrop-filter: blur(4px);">
+                  ${ex.grupo}
+                </span>
               </div>
-              <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">${ex.execucao}</p>
-              <div style="margin-top: 12px; font-size: 0.8rem; color: #38bdf8; font-weight: 600;">
-                ▶ Ver Animação do Movimento
+
+              <div style="padding: 10px 4px 4px 4px; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <h4 style="font-size: 0.95rem; font-weight: 800; color: #f8fafc; margin-bottom: 4px;">${ex.nome}</h4>
+                  <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${ex.execucao}
+                  </p>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.8rem; color: #38bdf8; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                  ▶ Ver Detalhes e Movimento
+                </div>
               </div>
             </div>
           `).join("")}
@@ -899,31 +946,28 @@ const App = {
     if (!ex) return;
 
     modal.innerHTML = `
-      <div class="modal-content">
+      <div class="modal-content" style="max-width: 580px; width: 95%;">
         <div class="modal-header">
-          <div class="modal-title">
-            <span>🏋️</span> ${ex.nome}
+          <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+            <span>🏋️</span> <span>${ex.nome}</span>
           </div>
           <button class="modal-close" onclick="App.fecharModalExercicio()">×</button>
         </div>
 
-        <div class="visual-card">
-          <div class="svg-container">
-            ${VisualBiomechanics.generateExerciseSVG(ex.svgType)}
-          </div>
-          <div class="animation-controls">
-            <button class="btn btn-sm btn-pix" onclick="VisualBiomechanics.togglePlayAnimation()">
-              ⏸ Pausar / Reproduzir
-            </button>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">Animação Biomecânica em Tempo Real</span>
-          </div>
+        <div style="margin: 12px 0;">
+          ${ExerciseVisuals.getExerciseMediaHtml(ex.id, ex.svgType)}
         </div>
 
-        <div style="margin-top: 16px; font-size: 0.85rem; line-height: 1.6;">
-          <p><strong>🎯 Grupo Muscular:</strong> ${ex.grupo}</p>
+        <div style="margin-top: 16px; font-size: 0.85rem; line-height: 1.6; background: rgba(255,255,255,0.03); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+          <p><strong>🎯 Grupo Muscular:</strong> <span style="color: #60a5fa; font-weight: 700;">${ex.grupo}</span></p>
           <p><strong>⚡ Sinergistas:</strong> ${ex.sinergistas || 'Não especificado'}</p>
-          <p style="margin-top: 6px;"><strong>⚙️ Instruções de Execução:</strong> ${ex.execucao}</p>
-          ${ex.videoHint ? `<p style="margin-top: 6px; color: #60a5fa;"><strong>💡 Dica do Professor Raian:</strong> ${ex.videoHint}</p>` : ''}
+          <p><strong>🔧 Equipamento:</strong> ${ex.equipamento || 'Livre / Máquina'}</p>
+          <p style="margin-top: 8px;"><strong>⚙️ Instruções de Execução:</strong><br>${ex.execucao}</p>
+          ${ex.videoHint ? `<div style="margin-top: 10px; background: rgba(59,130,246,0.12); border-left: 3px solid #3b82f6; padding: 8px 12px; border-radius: 4px; color: #93c5fd;"><strong>💡 Dica do Professor Raian:</strong> ${ex.videoHint}</div>` : ''}
+        </div>
+
+        <div style="margin-top: 16px; text-align: right;">
+          <button class="btn btn-sm btn-outline-sm" onclick="App.fecharModalExercicio()">Fechar</button>
         </div>
       </div>
     `;
@@ -932,6 +976,239 @@ const App = {
 
   fecharModalExercicio() {
     const modal = document.getElementById("exerciseModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  // ==========================================
+  // EDITOR DE TREINOS - EXCLUSIVO PROFESSOR RAIAN BISPO
+  // ==========================================
+  _editingStudentId: null,
+  _editingWorkout: null,
+
+  abrirEditorTreino(studentId) {
+    if (this.currentRole !== "professor" || !this.currentUser || this.currentUser.email.toLowerCase() !== PROFESSOR_EMAIL) {
+      alert("⚠️ Apenas o Professor Raian Bispo (raianmateus10@gmail.com) tem permissão para editar treinos.");
+      return;
+    }
+
+    const student = db.getStudentById(studentId);
+    if (!student) {
+      alert("Aluno não encontrado.");
+      return;
+    }
+
+    this._editingStudentId = studentId;
+
+    if (student.treinoAtual && student.treinoAtual.dias && student.treinoAtual.dias.length > 0) {
+      this._editingWorkout = JSON.parse(JSON.stringify(student.treinoAtual));
+    } else {
+      this._editingWorkout = {
+        nome: `Prescrição Raian Bispo - ${student.nome}`,
+        dias: [
+          {
+            dia: "Treino A",
+            exercicios: [
+              { id: "supino_reto", series: 3, reps: "10-12", cargaKg: 0, concluido: false }
+            ]
+          }
+        ]
+      };
+    }
+
+    this.renderModalEditorTreino();
+  },
+
+  renderModalEditorTreino() {
+    let modal = document.getElementById("workoutEditorModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "workoutEditorModal";
+      modal.className = "modal-overlay";
+      document.body.appendChild(modal);
+    }
+
+    const student = db.getStudentById(this._editingStudentId);
+    const workout = this._editingWorkout;
+    const library = db.getExerciseLibrary();
+
+    const diasHtml = workout.dias.map((d, dIdx) => {
+      const exRowsHtml = d.exercicios.map((ex, exIdx) => {
+        const optionsHtml = library.map(libEx => `
+          <option value="${libEx.id}" ${libEx.id === ex.id ? 'selected' : ''}>
+            ${libEx.nome} (${libEx.grupo})
+          </option>
+        `).join("");
+
+        return `
+          <div class="editor-exercise-row">
+            <select id="ed_ex_id_${dIdx}_${exIdx}" class="input-field" style="font-size: 0.85rem; padding: 6px 8px;">
+              ${optionsHtml}
+            </select>
+            <input type="text" id="ed_ex_series_${dIdx}_${exIdx}" class="input-field" placeholder="Séries" value="${ex.series}" style="font-size: 0.85rem; padding: 6px 8px;" title="Séries">
+            <input type="text" id="ed_ex_reps_${dIdx}_${exIdx}" class="input-field" placeholder="Reps" value="${ex.reps}" style="font-size: 0.85rem; padding: 6px 8px;" title="Repetições">
+            <input type="number" id="ed_ex_carga_${dIdx}_${exIdx}" class="input-field" placeholder="Carga (kg)" value="${ex.cargaKg || ''}" style="font-size: 0.85rem; padding: 6px 8px;" title="Carga em kg">
+            <button type="button" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 6px 10px; border-radius: 4px;" onclick="App.removerExercicioEditor(${dIdx}, ${exIdx})" title="Remover exercício">
+              ✕
+            </button>
+          </div>
+        `;
+      }).join("");
+
+      return `
+        <div class="editor-day-card">
+          <div class="editor-day-header">
+            <input type="text" id="ed_dia_nome_${dIdx}" class="input-field" value="${d.dia}" placeholder="Nome do dia de treino" style="font-weight: 700; flex: 1;">
+            <button type="button" class="btn btn-sm" style="background: rgba(239, 68, 68, 0.2); color: #f87171; white-space: nowrap;" onclick="App.removerDiaEditor(${dIdx})">
+              🗑️ Excluir Dia
+            </button>
+          </div>
+
+          <div style="margin-bottom: 8px;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 8px; font-size: 0.72rem; color: var(--text-muted); font-weight: 700; padding: 0 12px; margin-bottom: 4px;">
+              <span>EXERCÍCIO</span>
+              <span>SÉRIES</span>
+              <span>REPS</span>
+              <span>CARGA (KG)</span>
+              <span></span>
+            </div>
+            ${exRowsHtml}
+          </div>
+
+          <button type="button" class="btn btn-sm" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.8rem;" onclick="App.adicionarExercicioEditor(${dIdx})">
+            + Adicionar Exercício neste Dia
+          </button>
+        </div>
+      `;
+    }).join("");
+
+    modal.innerHTML = `
+      <div class="modal-content workout-editor-modal">
+        <div class="modal-header">
+          <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+            <span>✏️</span> 
+            <div>
+              <div style="font-size: 1.1rem; font-weight: 800;">Prescrição e Edição de Treino</div>
+              <div style="font-size: 0.8rem; color: #60a5fa; font-weight: 500;">Aluno: ${student ? student.nome : ''}</div>
+            </div>
+          </div>
+          <button class="modal-close" onclick="App.fecharEditorTreino()">×</button>
+        </div>
+
+        <div style="margin-top: 14px; margin-bottom: 16px;">
+          <label style="font-size: 0.8rem; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 6px;">
+            TÍTULO DO PLANO / MACROCICLO:
+          </label>
+          <input type="text" id="ed_treino_nome" class="input-field" value="${workout.nome}" placeholder="Ex: Prescrição Hipertrofia - Raian Bispo" style="font-weight: 700;">
+        </div>
+
+        <div id="editorDiasList">
+          ${diasHtml}
+        </div>
+
+        <button type="button" class="btn btn-sm" style="background: rgba(255, 255, 255, 0.08); width: 100%; justify-content: center; margin: 12px 0 20px 0; padding: 12px;" onclick="App.adicionarDiaEditor()">
+          ➕ Adicionar Novo Dia de Treino
+        </button>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border); padding-top: 16px;">
+          <button type="button" class="btn btn-sm btn-outline-sm" onclick="App.fecharEditorTreino()">Cancelar</button>
+          <button type="button" class="btn btn-sm btn-pix" style="padding: 10px 22px; font-size: 0.95rem;" onclick="App.salvarEditorTreino()">
+            💾 Salvar Treino e Sincronizar com Aluno
+          </button>
+        </div>
+      </div>
+    `;
+
+    modal.style.display = "flex";
+  },
+
+  capturarEstadoEditorTreino() {
+    if (!this._editingWorkout) return;
+    const nomeInput = document.getElementById("ed_treino_nome");
+    if (nomeInput) this._editingWorkout.nome = nomeInput.value.trim() || this._editingWorkout.nome;
+
+    this._editingWorkout.dias.forEach((d, dIdx) => {
+      const diaNomeInput = document.getElementById(`ed_dia_nome_${dIdx}`);
+      if (diaNomeInput) d.dia = diaNomeInput.value.trim() || d.dia;
+
+      d.exercicios.forEach((ex, exIdx) => {
+        const selEx = document.getElementById(`ed_ex_id_${dIdx}_${exIdx}`);
+        const selSeries = document.getElementById(`ed_ex_series_${dIdx}_${exIdx}`);
+        const selReps = document.getElementById(`ed_ex_reps_${dIdx}_${exIdx}`);
+        const selCarga = document.getElementById(`ed_ex_carga_${dIdx}_${exIdx}`);
+
+        if (selEx) ex.id = selEx.value;
+        if (selSeries) ex.series = isNaN(parseInt(selSeries.value)) ? selSeries.value : parseInt(selSeries.value);
+        if (selReps) ex.reps = selReps.value;
+        if (selCarga) ex.cargaKg = parseFloat(selCarga.value) || 0;
+      });
+    });
+  },
+
+  adicionarDiaEditor() {
+    this.capturarEstadoEditorTreino();
+    const letra = String.fromCharCode(65 + this._editingWorkout.dias.length);
+    this._editingWorkout.dias.push({
+      dia: `Treino ${letra} - Novo Módulo`,
+      exercicios: [
+        { id: "supino_reto", series: 3, reps: "10 a 12", cargaKg: 0, concluido: false }
+      ]
+    });
+    this.renderModalEditorTreino();
+  },
+
+  removerDiaEditor(dIdx) {
+    this.capturarEstadoEditorTreino();
+    if (this._editingWorkout.dias.length <= 1) {
+      alert("O treino deve ter pelo menos 1 dia de treino.");
+      return;
+    }
+    if (confirm(`Deseja remover o "${this._editingWorkout.dias[dIdx].dia}"?`)) {
+      this._editingWorkout.dias.splice(dIdx, 1);
+      this.renderModalEditorTreino();
+    }
+  },
+
+  adicionarExercicioEditor(dIdx) {
+    this.capturarEstadoEditorTreino();
+    this._editingWorkout.dias[dIdx].exercicios.push({
+      id: "agachamento_livre",
+      series: 3,
+      reps: "10 a 12",
+      cargaKg: 0,
+      concluido: false
+    });
+    this.renderModalEditorTreino();
+  },
+
+  removerExercicioEditor(dIdx, exIdx) {
+    this.capturarEstadoEditorTreino();
+    if (this._editingWorkout.dias[dIdx].exercicios.length <= 1) {
+      alert("Cada dia de treino deve conter pelo menos 1 exercício.");
+      return;
+    }
+    this._editingWorkout.dias[dIdx].exercicios.splice(exIdx, 1);
+    this.renderModalEditorTreino();
+  },
+
+  salvarEditorTreino() {
+    this.capturarEstadoEditorTreino();
+
+    const student = db.getStudentById(this._editingStudentId);
+    if (!student) {
+      alert("Aluno não encontrado para salvar.");
+      return;
+    }
+
+    student.treinoAtual = JSON.parse(JSON.stringify(this._editingWorkout));
+    db.updateStudent(student);
+
+    this.fecharEditorTreino();
+    this.mostrarToast(`✅ Treino de ${student.nome} atualizado com sucesso! Sincronizado para o aluno.`, "success");
+    this.render();
+  },
+
+  fecharEditorTreino() {
+    const modal = document.getElementById("workoutEditorModal");
     if (modal) modal.style.display = "none";
   },
 

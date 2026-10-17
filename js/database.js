@@ -136,6 +136,50 @@ const EXERCISE_LIBRARY = [
     execucao: "Toque o glúteo de forma suave e controlada na cadeira e levante empurrando pelo calcanhar sem usar as mãos.",
     svgType: "box_squat",
     videoHint: "Ideal para alunos iniciantes com dor articular ou peso elevado"
+  },
+  {
+    id: "cadeira_extensora",
+    nome: "Cadeira Extensora",
+    grupo: "Quadríceps",
+    sinergistas: "Reto Femoral",
+    equipamento: "Máquina Cadeira Extensora",
+    nivel: "Todos",
+    execucao: "Ajuste o encosto para manter os joelhos alinhados com o eixo de rotação da máquina. Estenda as pernas controlando o movimento sem jogar a carga.",
+    svgType: "leg_extension",
+    videoHint: "Segure 1 a 2 segundos em contração de pico no topo para máxima definição"
+  },
+  {
+    id: "panturrilha",
+    nome: "Elevação de Panturrilhas em Pé",
+    grupo: "Panturrilhas",
+    sinergistas: "Sóleo, Gastrocnêmio",
+    equipamento: "Máquina ou degrau com halteres",
+    nivel: "Todos",
+    execucao: "Suba na ponta dos pés o máximo possível, segure 1 segundo no topo e desça alongando completamente a fáscia plantar.",
+    svgType: "calf_raise",
+    videoHint: "Não realize rebotes rápidos; foque na amplitude e cadência controlada"
+  },
+  {
+    id: "triceps_corda",
+    nome: "Tríceps na Polia com Corda",
+    grupo: "Tríceps",
+    sinergistas: "Ancôneo",
+    equipamento: "Polia Alta e Corda",
+    nivel: "Todos",
+    execucao: "Cotovelos colados nas costelas. Empurre a corda para baixo abrindo as pontas no final do movimento para recrutar a cabeça lateral.",
+    svgType: "tricep_extension",
+    videoHint: "Evite movimentar os ombros ou balançar o tronco durante a execução"
+  },
+  {
+    id: "prancha",
+    nome: "Prancha Abdominal Isométrica",
+    grupo: "Core / Abdômen",
+    sinergistas: "Glúteos, Ombros, Lombar",
+    equipamento: "Colchonete",
+    nivel: "Todos",
+    execucao: "Apoie os antebraços e as pontas dos pés no chão. Mantenha coluna neutra, glúteos e abdômen contraídos em linha reta.",
+    svgType: "plank",
+    videoHint: "Respire continuamente; nunca prenda a respiração durante a isometria"
   }
 ];
 
@@ -233,8 +277,16 @@ class DatabaseManager {
     }
   }
 
+  getExerciseLibrary() {
+    return EXERCISE_LIBRARY;
+  }
+
   getExerciseById(id) {
     return EXERCISE_LIBRARY.find(e => e.id === id);
+  }
+
+  getFoodDatabase() {
+    return TACO_FOOD_DATABASE;
   }
 
   getFoodById(id) {
