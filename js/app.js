@@ -152,7 +152,14 @@ const App = {
           </div>
         </div>
 
-        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; font-size: 0.82rem;">
+        <!-- ALERTAS CLÍNICOS CRÍTICOS CRUZADOS COM IMC -->
+        <div style="margin-top: 14px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 6px; font-size: 0.8rem; color: #fca5a5;">
+          <strong style="color: #f87171;">⚠️ Alertas Clínicos Críticos:</strong><br>
+          • <strong>Alerta Farmacológico / Pressórico:</strong> ${s.alertaFarmacologico || 'não'}<br>
+          • <strong>Alerta Articular / Biomecânico:</strong> ${s.alertaArticular || 'não'}
+        </div>
+
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; font-size: 0.82rem;">
           <div>
             <span style="color: var(--text-muted);">Metas Diárias:</span><br>
             <strong style="color: #60a5fa;">${s.metaCalorias} kcal</strong> (P: ${s.macros.prot}g | C: ${s.macros.carb}g | G: ${s.macros.fat}g)
@@ -246,8 +253,8 @@ const App = {
         <div class="stat-card">
           <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">🔑</div>
           <div>
-            <div class="stat-val" style="font-size: 1.1rem; cursor: pointer;" onclick="App.copiarChavePix()">matheus.smarciel@gmail.com 📋</div>
-            <div class="stat-label">Chave Pix da Consultoria (Clique para copiar)</div>
+            <div class="stat-val" style="font-size: 1.1rem; cursor: pointer;" onclick="App.copiarChavePix()">raianmateus10@gmail.com 📋</div>
+            <div class="stat-label">Chave Pix Oficial Raian Bispo (Clique para copiar)</div>
           </div>
         </div>
       </div>
@@ -509,13 +516,13 @@ const App = {
   },
 
   copiarChavePix() {
-    navigator.clipboard.writeText("matheus.smarciel@gmail.com");
-    alert("✅ Chave Pix copiada com sucesso: matheus.smarciel@gmail.com");
+    navigator.clipboard.writeText("raianmateus10@gmail.com");
+    alert("✅ Chave Pix copiada com sucesso: raianmateus10@gmail.com (Professor Raian Bispo)");
   },
 
   enviarCobrancaWhats(studentId) {
     const s = db.getStudentById(studentId);
-    const msg = encodeURIComponent(`Olá, ${s.nome}! Passando para lembrar da renovação da sua consultoria fitness esportiva. Segue a chave Pix: matheus.smarciel@gmail.com no valor de R$ ${s.financeiro.valor.toFixed(2)}. Bons treinos!`);
+    const msg = encodeURIComponent(`Olá, ${s.nome}! Aqui é o Professor Raian Bispo. Passando para lembrar da renovação da sua consultoria on-line (A Meta é Logo Ali!). Segue a chave Pix: raianmateus10@gmail.com no valor de R$ ${s.financeiro.valor.toFixed(2)}. Bons treinos e foco na meta!`);
     window.open(`https://wa.me/55${s.whatsapp.replace(/\D/g, '')}?text=${msg}`, '_blank');
   },
 

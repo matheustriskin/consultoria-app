@@ -480,6 +480,8 @@ class DatabaseManager {
       const parsed = JSON.parse(match[1]);
       if (!parsed.table || !parsed.table.rows) return { success: false, error: "Sem dados retornados." };
 
+      const cols = parsed.table.cols.map(c => (c.label || '').trim());
+      const colIndexPlano = cols.findIndex(l => l.toLowerCase().includes("plano"));
       const rows = parsed.table.rows;
       const currentData = this.get();
       const updatedStudents = [];
@@ -507,6 +509,29 @@ class DatabaseManager {
         const localTreino = String(cells[24] || 'Academia');
         const sono = String(cells[36] || '6 a 7 horas');
 
+        // Plano Desejado da pergunta
+        let planoDesejado = "Plano Mensal - 3 vezes na semana (R$ 200/mês)";
+        if (colIndexPlano !== -1 && cells[colIndexPlano]) {
+          planoDesejado = String(cells[colIndexPlano]).trim();
+        } else if (cells.length > 42 && cells[42]) {
+          planoDesejado = String(cells[42]).trim();
+        }
+
+        // Dias de treino estritamente determinados pelo plano
+        let diasPlano = 3;
+        if (planoDesejado.includes("2 vezes") || planoDesejado.includes("2x")) diasPlano = 2;
+        else if (planoDesejado.includes("3 vezes") || planoDesejado.includes("3x")) diasPlano = 3;
+        else if (planoDesejado.includes("4 vezes") || planoDesejado.includes("4x")) diasPlano = 4;
+        else if (planoDesejado.includes("5 vezes") || planoDesejado.includes("5x")) diasPlano = 5;
+
+        // Valor do plano
+        let valorPlano = 200.0;
+        if (planoDesejado.includes("150")) valorPlano = 150.0;
+        else if (planoDesejado.includes("200")) valorPlano = 200.0;
+        else if (planoDesejado.includes("250")) valorPlano = 250.0;
+        else if (planoDesejado.includes("300")) valorPlano = 300.0;
+        else if (planoDesejado.includes("450")) valorPlano = 450.0;
+
         const alturaM = altura / 100;
         const imc = (peso > 0 && alturaM > 0) ? +(peso / (alturaM * alturaM)).toFixed(2) : 0;
         let classImc = "Peso Normal";
@@ -515,7 +540,30 @@ class DatabaseManager {
         else if (imc >= 30) classImc = "Obesidade Grau 1";
         else if (imc >= 25) classImc = "Sobrepeso";
 
-        // Idade estimada
+        // Cruzamento de IMC e Alertas Clínicos
+        const textoGeral = (patologias + " " + medicamentos + " " + incomodo).toLowerCase();
+        let alertaFarmacologico = "não";
+        let itensP = [];
+        if (textoGeral.includes("hipertens")) itensP.push("Hipertensão Arterial diagnosticada");
+        if (textoGeral.includes("monster") || textoGeral.includes("energét") || textoGeral.includes("cafeína") || textoGeral.includes("red bull")) itensP.push("Consumo de Estimulantes / Energético");
+        if (textoGeral.includes("colesterol") || textoGeral.includes("triglicer")) itensP.push("Colesterol ou Triglicerídeos alterados");
+        if (textoGeral.includes("diabetes") || textoGeral.includes("insulina")) itensP.push("Diabetes / Resistência à Insulina");
+        if (medicamentos.length > 2 && !medicamentos.toLowerCase().includes("não") && !medicamentos.toLowerCase().includes("nao")) itensP.push(`Medicamentos: ${medicamentos}`);
+        if (itensP.length > 0) alertaFarmacologico = itensP.join("; ");
+
+        let alertaArticular = "não";
+        let itensA = [];
+        if (imc >= 35) {
+          itensA.push(`Sobrecarga articular crítica por IMC ${imc} (${classImc}): Suspender corrida e impacto nos joelhos e coluna`);
+        } else if (imc >= 30) {
+          itensA.push(`Atenção à sobrecarga articular por IMC ${imc} (${classImc}): Priorizar cadeia cinética fechada e esteira plana`);
+        }
+        if (lesoes.length > 2 && !lesoes.toLowerCase().includes("não") && !lesoes.toLowerCase().includes("nao") && !lesoes.toLowerCase().includes("nenhum")) {
+          itensA.push(`Lesão relatada: ${lesoes}`);
+        }
+        if (itensA.length > 0) alertaArticular = itensA.join("; ");
+
+        // Metas Metabólicas
         const isMasc = genero.toLowerCase().includes('masc');
         const tmb = Math.round((10 * peso) + (6.25 * altura) - (5 * 28) + (isMasc ? 5 : -161));
         const get = Math.round(tmb * 1.35);
@@ -529,6 +577,118 @@ class DatabaseManager {
           calorias = Math.round(get - 500);
         }
         const carb = Math.max(50, Math.round((calorias - (prot * 4 + fat * 9)) / 4));
+
+        // Prescrição de Treino Estritamente de Acordo com o Plano
+        let treinoDiasArray = [];
+        if (diasPlano === 2) {
+          treinoDiasArray = [
+            {
+              dia: "Treino A - Superiores Completos & Core",
+              exercicios: [
+                { id: "supino_reto", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false },
+                { id: "puxada_alta", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false },
+                { id: "crossover_polia", series: 3, reps: "12 a 15", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino B - Inferiores Protegidos & Cardio",
+              exercicios: [
+                { id: "leg_press_45", series: 4, reps: "12 a 15", cargaKg: 0, concluido: false }
+              ]
+            }
+          ];
+        } else if (diasPlano === 4) {
+          treinoDiasArray = [
+            {
+              dia: "Treino A - Superior Força (Empurrar & Puxar)",
+              exercicios: [
+                { id: "supino_reto", series: 4, reps: "8 a 10", cargaKg: 0, concluido: false },
+                { id: "remada_curvada", series: 4, reps: "8 a 10", cargaKg: 0, concluido: false },
+                { id: "puxada_alta", series: 3, reps: "10", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino B - Inferiores (Foco Quadríceps)",
+              exercicios: [
+                { id: "leg_press_45", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino C - Superior Hipertrofia & Detalhes",
+              exercicios: [
+                { id: "supino_inclinado_halteres", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false },
+                { id: "crossover_polia", series: 3, reps: "12 a 15", cargaKg: 0, concluido: false },
+                { id: "puxada_alta", series: 4, reps: "10", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino D - Inferiores & Posterior",
+              exercicios: [
+                { id: "leg_press_45", series: 4, reps: "12 a 15", cargaKg: 0, concluido: false }
+              ]
+            }
+          ];
+        } else if (diasPlano === 5) {
+          treinoDiasArray = [
+            {
+              dia: "Treino A - Peitoral & Deltoide",
+              exercicios: [
+                { id: "supino_reto", series: 4, reps: "10", cargaKg: 0, concluido: false },
+                { id: "supino_inclinado_halteres", series: 4, reps: "10", cargaKg: 0, concluido: false },
+                { id: "crossover_polia", series: 3, reps: "12", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino B - Dorsais & Trapézio",
+              exercicios: [
+                { id: "puxada_alta", series: 4, reps: "10", cargaKg: 0, concluido: false },
+                { id: "remada_curvada", series: 4, reps: "10", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino C - Quadríceps & Panturrilha",
+              exercicios: [
+                { id: "leg_press_45", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino D - Ombros & Braços",
+              exercicios: [
+                { id: "crossover_polia", series: 3, reps: "12", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino E - Posterior de Coxa & Glúteos",
+              exercicios: [
+                { id: "leg_press_45", series: 4, reps: "12", cargaKg: 0, concluido: false }
+              ]
+            }
+          ];
+        } else {
+          // 3x na semana (Padrão)
+          treinoDiasArray = [
+            {
+              dia: "Treino A - Superiores & Força",
+              exercicios: [
+                { id: "supino_reto", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false },
+                { id: "puxada_alta", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino B - Membros Inferiores Protegidos",
+              exercicios: [
+                { id: "leg_press_45", series: 4, reps: "12 a 15", cargaKg: 0, concluido: false }
+              ]
+            },
+            {
+              dia: "Treino C - Full Body & Estabilidade",
+              exercicios: [
+                { id: "supino_inclinado_halteres", series: 3, reps: "10 a 12", cargaKg: 0, concluido: false },
+                { id: "puxada_alta", series: 3, reps: "10 a 12", cargaKg: 0, concluido: false }
+              ]
+            }
+          ];
+        }
 
         const studentId = "aluno_" + nome.toLowerCase().replace(/[^a-z0-9]/g, '_');
         const existing = currentData.students ? currentData.students.find(s => s.id === studentId) : null;
@@ -552,6 +712,8 @@ class DatabaseManager {
           patologias: patologias,
           medicamentos: medicamentos,
           lesoes: lesoes,
+          alertaFarmacologico: alertaFarmacologico,
+          alertaArticular: alertaArticular,
           tmb: tmb,
           get: get,
           metaCalorias: calorias,
@@ -562,30 +724,16 @@ class DatabaseManager {
             agua: +(peso * 0.035).toFixed(1)
           },
           financeiro: existing ? existing.financeiro : {
-            plano: "Consultoria Mensal",
-            valor: 150.00,
-            vencimento: "2026-11-10",
+            plano: planoDesejado,
+            valor: valorPlano,
+            vencimento: "10/" + (new Date().getMonth() + 1).toString().padStart(2, "0") + "/2026",
             status: "em_dia",
             metodo: "Pix",
             historico: []
           },
           treinoAtual: existing ? existing.treinoAtual : {
-            nome: localTreino.toLowerCase().includes('casa') ? 'Treino em Casa 3x' : 'Treino Academia 3x',
-            dias: [
-              {
-                dia: "Treino A - Superiores & Força",
-                exercicios: [
-                  { id: "supino_reto", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false },
-                  { id: "puxada_alta", series: 4, reps: "10 a 12", cargaKg: 0, concluido: false }
-                ]
-              },
-              {
-                dia: "Treino B - Membros Inferiores Protegidos",
-                exercicios: [
-                  { id: "leg_press_45", series: 4, reps: "12 a 15", cargaKg: 0, concluido: false }
-                ]
-              }
-            ]
+            nome: `Prescrição Raian Bispo (${diasPlano}x na Semana)`,
+            dias: treinoDiasArray
           },
           diarioHoje: existing ? existing.diarioHoje : []
         });

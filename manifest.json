@@ -1,7 +1,7 @@
 {
-  "name": "Consultoria Esportiva | Matheus Santana",
-  "short_name": "Consultoria",
-  "description": "Plataforma de Treino, Diário Nutricional e Gestão de Alunos",
+  "name": "Personal Trainer Raian Bispo | Consultoria On-Line",
+  "short_name": "Raian Bispo",
+  "description": "Consultoria On-line e Treinos Personalizados - A meta é logo ali",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#090d16",
