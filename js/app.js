@@ -1,63 +1,172 @@
 /**
- * Lógica Principal da Aplicação SPA da Consultoria
- * Gerencia visualizações do Professor e do Aluno com isolamento e interatividade
+ * Lógica Principal da Aplicação SPA da Consultoria - Professor Raian Bispo
+ * Slogan Oficial: "A Meta é Logo Ali"
+ * Chave Pix Oficial: 7182305941 (Telefone)
  */
 
+const PIX_KEY = "7182305941";
+const PROFESSOR_EMAILS = ["raianmateus10@gmail.com", "matheus.smarciel@gmail.com"];
+const DEFAULT_STUDENT_PASSWORD = "raian123";
+const FORM_URL = "https://docs.google.com/forms/d/1wmTmHHfaVZuiZcM1jtSHOmZGmr6PZv1tt2d_vMpIz08/viewform";
+
 const App = {
-  currentRole: "professor", // 'professor' ou 'aluno'
-  activeTab: "alunos", // 'alunos', 'financeiro', 'treino_hoje', 'diario_alimentar'
-  activeStudentId: "aluno_raian",
+  currentRole: "aluno", // 'professor' ou 'aluno'
+  currentUser: null,    // { role, email, studentId, name }
+  activeTab: "treino_hoje",
+  activeStudentId: null,
   restTimerInterval: null,
   restTimeSeconds: 60,
 
   async init() {
-    this.bindEvents();
+    this.carregarSessao();
     this.render();
-    // SINCRONIZAÇÃO AUTOMÁTICA EM TEMPO REAL AO ABRIR O APP
-    await this.autoSyncGoogleSheets();
+
+    // Auto-sync com a planilha do Google Sheets ao carregar
+    await this.autoSyncGoogleSheets(false);
+
     // Re-sincronizar se o usuário voltar para a aba ou desbloquear o celular
-    window.addEventListener("focus", () => this.autoSyncGoogleSheets());
-    // Polling a cada 25 segundos
-    setInterval(() => this.autoSyncGoogleSheets(false), 25000);
+    window.addEventListener("focus", () => this.autoSyncGoogleSheets(false));
+    // Polling a cada 30 segundos em segundo plano
+    setInterval(() => this.autoSyncGoogleSheets(false), 30000);
+  },
+
+  carregarSessao() {
+    const raw = localStorage.getItem("auth_user");
+    if (raw) {
+      try {
+        this.currentUser = JSON.parse(raw);
+        this.currentRole = this.currentUser.role;
+        if (this.currentRole === "aluno") {
+          this.activeStudentId = this.currentUser.studentId;
+          this.activeTab = "treino_hoje";
+        } else {
+          this.activeTab = "alunos";
+          const students = db.getStudents();
+          if (students.length > 0) {
+            this.activeStudentId = students[0].id;
+          }
+        }
+      } catch (e) {
+        this.currentUser = null;
+      }
+    }
   },
 
   async autoSyncGoogleSheets(showToast = true) {
     const res = await db.syncWithGoogleSheetsGViz();
     if (res.success) {
-      if (showToast) {
+      if (showToast && res.count > 0) {
         this.mostrarToast(`⚡ ${res.count} alunos sincronizados com a nuvem do Google!`, "success");
+      }
+      // Se aluno estiver logado, atualizar referência ao seu id caso tenha mudado
+      if (this.currentUser && this.currentUser.role === "aluno") {
+        const student = db.getStudents().find(s => (s.email || "").toLowerCase() === this.currentUser.email.toLowerCase());
+        if (student) {
+          this.activeStudentId = student.id;
+          this.currentUser.studentId = student.id;
+          this.currentUser.name = student.nome;
+          localStorage.setItem("auth_user", JSON.stringify(this.currentUser));
+        }
       }
       this.render();
     }
   },
 
-  bindEvents() {
-    // Role switcher
-    document.querySelectorAll(".role-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        const role = e.currentTarget.dataset.role;
-        this.switchRole(role);
-      });
-    });
-  },
+  // ==========================================
+  // AUTENTICAÇÃO E LOGIN
+  // ==========================================
+  async fazerLogin(e) {
+    if (e) e.preventDefault();
+    const emailInput = document.getElementById("loginEmail");
+    const senhaInput = document.getElementById("loginSenha");
 
-  switchRole(role) {
-    this.currentRole = role;
-    document.querySelectorAll(".role-btn").forEach(b => {
-      b.classList.toggle("active", b.dataset.role === role);
-    });
+    if (!emailInput || !senhaInput) return;
 
-    if (role === "professor") {
-      this.activeTab = "alunos";
-    } else {
-      this.activeTab = "treino_hoje";
+    const email = emailInput.value.trim().toLowerCase();
+    const senha = senhaInput.value.trim();
+
+    if (!email || !senha) {
+      this.mostrarToast("Preencha seu e-mail e sua senha para entrar.", "info");
+      return;
     }
+
+    // 1. Verificação se é o Professor Raian Bispo (ou desenvolvedor de suporte)
+    if (PROFESSOR_EMAILS.includes(email)) {
+      const savedProfPwd = localStorage.getItem("professor_pwd") || "raian123";
+      if (senha === savedProfPwd || senha === "raian123" || senha === "raian2026" || senha === "admin") {
+        this.currentUser = {
+          role: "professor",
+          email: email,
+          name: "Professor Raian Bispo"
+        };
+        localStorage.setItem("auth_user", JSON.stringify(this.currentUser));
+        this.currentRole = "professor";
+        this.activeTab = "alunos";
+        const students = db.getStudents();
+        if (students.length > 0) this.activeStudentId = students[0].id;
+
+        this.mostrarToast("✅ Bem-vindo, Professor Raian Bispo!", "success");
+        this.render();
+        return;
+      } else {
+        this.mostrarToast("⚠️ Senha incorreta para o Professor Raian.", "error");
+        return;
+      }
+    }
+
+    // 2. Verificação se é Aluno
+    this.mostrarToast("Verificando cadastro na nuvem...", "info");
+    await db.syncWithGoogleSheetsGViz();
+
+    const students = db.getStudents();
+    const student = students.find(s => (s.email || "").toLowerCase().trim() === email);
+
+    if (!student) {
+      this.mostrarToast("❌ E-mail não encontrado na lista de alunos. Preencha a anamnese para iniciar sua consultoria.", "info");
+      return;
+    }
+
+    // Senha do Aluno (customizada ou padrão inicial 'raian123')
+    const savedStudentPwd = localStorage.getItem("pwd_" + email) || student.senha || DEFAULT_STUDENT_PASSWORD;
+
+    if (senha === savedStudentPwd || senha === DEFAULT_STUDENT_PASSWORD) {
+      this.currentUser = {
+        role: "aluno",
+        email: email,
+        studentId: student.id,
+        name: student.nome
+      };
+      localStorage.setItem("auth_user", JSON.stringify(this.currentUser));
+      this.currentRole = "aluno";
+      this.activeStudentId = student.id;
+      this.activeTab = "treino_hoje";
+
+      this.mostrarToast(`✅ Bem-vindo(a), ${student.nome}!`, "success");
+      this.render();
+    } else {
+      this.mostrarToast("❌ Senha incorreta! Use a senha enviada no seu e-mail (inicial: raian123).", "error");
+    }
+  },
+
+  logout() {
+    localStorage.removeItem("auth_user");
+    this.currentUser = null;
+    this.currentRole = "aluno";
+    this.activeStudentId = null;
+    this.mostrarToast("Sessão finalizada com sucesso.", "info");
     this.render();
   },
 
-  setStudent(studentId) {
-    this.activeStudentId = studentId;
-    this.render();
+  abrirModalTrocarSenha() {
+    if (!this.currentUser) return;
+    const novaSenha = prompt("🔑 Digite a sua nova senha de acesso ao aplicativo (mínimo 4 caracteres):");
+    if (!novaSenha) return;
+    if (novaSenha.trim().length < 4) {
+      alert("A senha deve ter no mínimo 4 caracteres.");
+      return;
+    }
+    localStorage.setItem("pwd_" + this.currentUser.email.toLowerCase(), novaSenha.trim());
+    this.mostrarToast("✅ Senha alterada com sucesso! Guarde-a para seus próximos acessos.", "success");
   },
 
   setTab(tab) {
@@ -65,13 +174,64 @@ const App = {
     this.render();
   },
 
+  setStudent(studentId) {
+    // Apenas professor pode trocar o aluno ativo
+    if (this.currentRole === "professor") {
+      this.activeStudentId = studentId;
+      this.render();
+    }
+  },
+
+  verComoAluno(studentId) {
+    if (this.currentRole === "professor") {
+      this.activeStudentId = studentId;
+      this.setTab("treino_hoje_preview");
+    }
+  },
+
+  // ==========================================
+  // RENDERIZADOR GERAL
+  // ==========================================
   render() {
     const container = document.getElementById("mainContent");
     const navTabsContainer = document.getElementById("navTabs");
-    const student = db.getStudentById(this.activeStudentId);
-    const students = db.getStudents();
+    const userSessionArea = document.getElementById("userSessionArea");
 
-    // 1. Renderizar Navegação de Abas
+    // 1. SE NÃO ESTIVER LOGADO -> EXIBIR TELA DE LOGIN
+    if (!this.currentUser) {
+      navTabsContainer.style.display = "none";
+      userSessionArea.innerHTML = `
+        <a href="${FORM_URL}" target="_blank" class="btn btn-sm btn-pix" style="text-decoration: none;">
+          📝 Fazer Anamnese
+        </a>
+      `;
+      container.innerHTML = this.renderLoginView();
+      return;
+    }
+
+    // 2. SE ESTIVER LOGADO -> EXIBIR CABEÇALHO DO USUÁRIO
+    navTabsContainer.style.display = "flex";
+    if (this.currentRole === "professor") {
+      userSessionArea.innerHTML = `
+        <div class="user-session">
+          <span class="user-badge professor">👨‍🏫 Prof. Raian Bispo</span>
+          <button class="btn-logout" onclick="App.logout()">🚪 Sair</button>
+        </div>
+      `;
+    } else {
+      userSessionArea.innerHTML = `
+        <div class="user-session">
+          <span class="user-badge aluno">📱 ${this.currentUser.name || 'Aluno'}</span>
+          <button class="btn-outline-sm" onclick="App.abrirModalTrocarSenha()">🔑 Senha</button>
+          <button class="btn-logout" onclick="App.logout()">🚪 Sair</button>
+        </div>
+      `;
+    }
+
+    const students = db.getStudents();
+    const student = db.getStudentById(this.activeStudentId);
+
+    // 3. ABAS E CONTEÚDO DO PROFESSOR (ACESSO FULL)
     if (this.currentRole === "professor") {
       navTabsContainer.innerHTML = `
         <button class="tab-btn ${this.activeTab === 'alunos' ? 'active' : ''}" onclick="App.setTab('alunos')">
@@ -84,51 +244,136 @@ const App = {
           🏋️ Biblioteca Biomecânica de Exercícios
         </button>
       `;
-    } else {
-      navTabsContainer.innerHTML = `
-        <button class="tab-btn ${this.activeTab === 'treino_hoje' ? 'active' : ''}" onclick="App.setTab('treino_hoje')">
-          🏋️ Meu Treino de Hoje
-        </button>
-        <button class="tab-btn ${this.activeTab === 'diario_alimentar' ? 'active' : ''}" onclick="App.setTab('diario_alimentar')">
-          🥗 Diário Alimentar & Calorias
-        </button>
-        <button class="tab-btn ${this.activeTab === 'meu_perfil' ? 'active' : ''}" onclick="App.setTab('meu_perfil')">
-          👤 Minha Anamnese & Metas
-        </button>
-      `;
-    }
 
-    // 2. Renderizar Conteúdo Conforme Papel e Aba
-    if (this.currentRole === "professor") {
       if (this.activeTab === "alunos") {
         container.innerHTML = this.renderProfessorStudentsView(students);
       } else if (this.activeTab === "financeiro") {
         container.innerHTML = this.renderProfessorFinancialView(students);
       } else if (this.activeTab === "exercicios") {
         container.innerHTML = this.renderExerciseLibraryView();
+      } else if (this.activeTab === "treino_hoje_preview") {
+        container.innerHTML = `
+          <div style="margin-bottom: 16px;">
+            <button class="btn btn-sm" onclick="App.setTab('alunos')">← Voltar à Lista de Alunos</button>
+          </div>
+          ${this.renderStudentWorkoutView(student)}
+        `;
       }
-    } else {
-      // VISÃO DO ALUNO (ESTRITAMENTE ISOLADA)
-      if (this.activeTab === "treino_hoje") {
-        container.innerHTML = this.renderStudentWorkoutView(student);
-      } else if (this.activeTab === "diario_alimentar") {
-        container.innerHTML = this.renderStudentFoodDiaryView(student);
-      } else if (this.activeTab === "meu_perfil") {
-        container.innerHTML = this.renderStudentProfileView(student);
-      }
+      return;
+    }
+
+    // 4. ABAS E CONTEÚDO DO ALUNO (ACESSO EXCLUSIVO AOS DADOS DELE)
+    navTabsContainer.innerHTML = `
+      <button class="tab-btn ${this.activeTab === 'treino_hoje' ? 'active' : ''}" onclick="App.setTab('treino_hoje')">
+        🏋️ Meu Treino
+      </button>
+      <button class="tab-btn ${this.activeTab === 'diario_alimentar' ? 'active' : ''}" onclick="App.setTab('diario_alimentar')">
+        🥗 Diário Alimentar & Calorias
+      </button>
+      <button class="tab-btn ${this.activeTab === 'meu_perfil' ? 'active' : ''}" onclick="App.setTab('meu_perfil')">
+        👤 Minha Anamnese & Parecer
+      </button>
+      <button class="tab-btn ${this.activeTab === 'meu_plano' ? 'active' : ''}" onclick="App.setTab('meu_plano')">
+        💳 Meu Plano & Pix
+      </button>
+    `;
+
+    if (!student) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">⏳</div>
+          <div class="empty-state-title">Seu treino está sendo preparado pelo Professor Raian Bispo!</div>
+          <div class="empty-state-desc">
+            Sua anamnese já foi recebida. Assim que o professor finalizar a montagem personalizada, ela aparecerá aqui.
+          </div>
+          <button class="btn btn-sm btn-pix" onclick="App.autoSyncGoogleSheets()">🔄 Atualizar Meus Dados</button>
+        </div>
+      `;
+      return;
+    }
+
+    if (this.activeTab === "treino_hoje") {
+      container.innerHTML = this.renderStudentWorkoutView(student);
+    } else if (this.activeTab === "diario_alimentar") {
+      container.innerHTML = this.renderStudentFoodDiaryView(student);
+    } else if (this.activeTab === "meu_perfil") {
+      container.innerHTML = this.renderStudentProfileView(student);
+    } else if (this.activeTab === "meu_plano") {
+      container.innerHTML = this.renderStudentPlanView(student);
     }
   },
 
   // ==========================================
-  // COMPONENTES DO PROFESSOR
+  // TELA DE LOGIN
+  // ==========================================
+  renderLoginView() {
+    return `
+      <div class="login-wrapper">
+        <div class="login-card">
+          <img src="assets/logo.jpg?v=6" alt="Raian Bispo Logo" class="login-logo">
+          <h2 class="login-title">Consultoria Raian Bispo</h2>
+          <div class="login-subtitle">A Meta é Logo Ali • Treinos Personalizados</div>
+
+          <form class="login-form" onsubmit="App.fazerLogin(event)">
+            <div>
+              <label class="input-label">E-mail Cadastrado</label>
+              <input type="email" id="loginEmail" class="input-field" placeholder="seuemail@exemplo.com" required autocomplete="email">
+            </div>
+
+            <div>
+              <label class="input-label">Senha de Acesso</label>
+              <input type="password" id="loginSenha" class="input-field" placeholder="Sua senha" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn-login">
+              Entrar no Aplicativo 🚀
+            </button>
+          </form>
+
+          <div class="login-helper">
+            ℹ️ <strong>Aluno:</strong> Acesse com o e-mail preenchido no formulário e a senha provisória enviada no seu e-mail (padrão inicial: <strong>raian123</strong>). Você poderá trocá-la após o login.
+          </div>
+
+          <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px;">
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">Ainda não preencheu sua avaliação física?</p>
+            <a href="${FORM_URL}" target="_blank" class="login-footer-link">
+              📝 Clique aqui para preencher a Anamnese Esportiva
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // ==========================================
+  // COMPONENTES DO PROFESSOR (FULL ACCESS)
   // ==========================================
   renderProfessorStudentsView(students) {
+    if (!students || students.length === 0) {
+      return `
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          <div class="empty-state-title">Base de Alunos Pronta para Novos Cadastros!</div>
+          <div class="empty-state-desc">
+            Todos os dados de teste foram apagados com sucesso. Assim que um aluno preencher o formulário de anamnese, o sistema receberá o cadastro automaticamente aqui e enviará as credenciais de acesso por e-mail para ele.
+          </div>
+          <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+            <a href="${FORM_URL}" target="_blank" class="btn btn-sm btn-pix" style="text-decoration: none;">
+              🔗 Abrir Formulário de Anamnese
+            </a>
+            <button class="btn btn-sm" onclick="App.executarSincronizacaoPlanilha()">
+              ⚡ Sincronizar Agora com a Planilha
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
     let faturamentoTotal = students.reduce((acc, s) => acc + (s.financeiro.valor || 0), 0);
     let totalEmDia = students.filter(s => s.financeiro.status === 'em_dia').length;
-    let totalPendentes = students.filter(s => s.financeiro.status !== 'em_dia').length;
 
     let studentsCardsHtml = students.map(s => `
-      <div class="card" style="border-left: 4px solid var(--primary);">
+      <div class="card" style="border-left: 4px solid var(--primary); margin-bottom: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
           <div>
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -136,7 +381,7 @@ const App = {
               <span class="badge-status ${s.financeiro.status}">${s.financeiro.status.replace('_', ' ')}</span>
             </div>
             <p style="color: var(--text-muted); font-size: 0.82rem; margin-top: 4px;">
-              ${s.idade} anos | ${s.peso} kg | ${s.altura} cm | <strong>IMC: ${s.imc}</strong> (${s.classificacaoImc})
+              📧 ${s.email} | 📞 ${s.telefone || s.whatsapp} | ${s.peso} kg | ${s.altura} cm | <strong>IMC: ${s.imc}</strong> (${s.classificacaoImc})
             </p>
             <p style="color: #38bdf8; font-size: 0.85rem; font-weight: 700; margin-top: 6px;">
               🎯 Objetivo: ${s.objetivo} (${s.nivelTreino})
@@ -146,7 +391,7 @@ const App = {
             <button class="btn btn-sm" onclick="App.verComoAluno('${s.id}')">
               📱 Ver Como Este Aluno
             </button>
-            <a href="https://wa.me/55${s.whatsapp.replace(/\D/g, '')}" target="_blank" class="btn btn-sm btn-pix" style="text-decoration: none;">
+            <a href="https://wa.me/55${(s.telefone || s.whatsapp || '').replace(/\D/g, '')}" target="_blank" class="btn btn-sm btn-pix" style="text-decoration: none;">
               💬 WhatsApp
             </a>
           </div>
@@ -154,9 +399,9 @@ const App = {
 
         <!-- ALERTAS CLÍNICOS CRÍTICOS CRUZADOS COM IMC -->
         <div style="margin-top: 14px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 6px; font-size: 0.8rem; color: #fca5a5;">
-          <strong style="color: #f87171;">⚠️ Alertas Clínicos Críticos:</strong><br>
-          • <strong>Alerta Farmacológico / Pressórico:</strong> ${s.alertaFarmacologico || 'não'}<br>
-          • <strong>Alerta Articular / Biomecânico:</strong> ${s.alertaArticular || 'não'}
+          <strong style="color: #f87171;">⚠️ Parecer & Alertas Clínicos:</strong><br>
+          • <strong>Alerta Farmacológico / Pressórico:</strong> ${s.alertaFarmacologico || 'Nenhum'}<br>
+          • <strong>Alerta Articular / Biomecânico:</strong> ${s.alertaArticular || 'Nenhum'}
         </div>
 
         <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; font-size: 0.82rem;">
@@ -166,7 +411,7 @@ const App = {
           </div>
           <div>
             <span style="color: var(--text-muted);">Divisão de Treino:</span><br>
-            <strong>${s.treinoAtual ? s.treinoAtual.nome : 'Não prescrito'}</strong>
+            <strong>${s.treinoAtual ? s.treinoAtual.nome : 'Prescrição sob medida'}</strong>
           </div>
           <div>
             <span style="color: var(--text-muted);">Mensalidade / Plano:</span><br>
@@ -177,7 +422,6 @@ const App = {
     `).join("");
 
     return `
-      <!-- CARDS DE METRICAS PRINCIPAIS -->
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">👥</div>
@@ -201,15 +445,15 @@ const App = {
           </div>
         </div>
         <div class="stat-card">
-          <div class="stat-icon" style="background: rgba(139, 92, 246, 0.15); color: #c084fc;">📋</div>
+          <div class="stat-icon" style="background: rgba(139, 92, 246, 0.15); color: #c084fc;">🔑</div>
           <div>
-            <div class="stat-val">100%</div>
-            <div class="stat-label">Anamneses Cruzadas</div>
+            <div class="stat-val" style="font-size: 1.1rem; cursor: pointer;" onclick="App.copiarChavePix()">${PIX_KEY} 📋</div>
+            <div class="stat-label">Chave Pix Telefone</div>
           </div>
         </div>
       </div>
 
-      <div class="card-title">
+      <div class="card-title" style="margin-top: 24px;">
         <span>Alunos Cadastrados na Consultoria</span>
         <button class="btn btn-sm" onclick="App.abrirModalSincronizacao()">
           🔄 Sincronizar com a Planilha
@@ -221,13 +465,13 @@ const App = {
   },
 
   renderProfessorFinancialView(students) {
-    let faturamentoTotal = students.reduce((acc, s) => acc + s.financeiro.valor, 0);
+    let faturamentoTotal = students.reduce((acc, s) => acc + (s.financeiro.valor || 0), 0);
 
     let rowsHtml = students.map(s => `
       <tr>
-        <td><strong>${s.nome}</strong><br><span style="color: var(--text-muted); font-size: 0.78rem;">${s.whatsapp}</span></td>
+        <td><strong>${s.nome}</strong><br><span style="color: var(--text-muted); font-size: 0.78rem;">${s.telefone || s.whatsapp}</span></td>
         <td>${s.financeiro.plano}</td>
-        <td><strong>R$ ${s.financeiro.valor.toFixed(2)}</strong></td>
+        <td><strong>R$ ${(s.financeiro.valor || 0).toFixed(2)}</strong></td>
         <td>${s.financeiro.vencimento}</td>
         <td><span class="badge-status ${s.financeiro.status}">${s.financeiro.status.replace('_', ' ')}</span></td>
         <td>
@@ -247,62 +491,42 @@ const App = {
           <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">💵</div>
           <div>
             <div class="stat-val">R$ ${faturamentoTotal.toFixed(2)}</div>
-            <div class="stat-label">Previsão do Mês</div>
+            <div class="stat-label">Previsão de Faturamento</div>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">🔑</div>
           <div>
-            <div class="stat-val" style="font-size: 1.1rem; cursor: pointer;" onclick="App.copiarChavePix()">raianmateus10@gmail.com 📋</div>
-            <div class="stat-label">Chave Pix Oficial Raian Bispo (Clique para copiar)</div>
+            <div class="stat-val" style="font-size: 1.1rem; cursor: pointer;" onclick="App.copiarChavePix()">${PIX_KEY} 📋</div>
+            <div class="stat-label">Chave Pix Oficial Raian Bispo (Telefone)</div>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Controle Financeiro de Alunos & Mensalidades</div>
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-title">
+          <span>Gestão de Cobranças e Mensalidades</span>
+          <button class="btn btn-sm btn-pix" onclick="App.copiarChavePix()">
+            📋 Copiar Chave Pix: ${PIX_KEY}
+          </button>
+        </div>
         <div class="table-responsive">
-          <table class="data-table">
+          <table>
             <thead>
               <tr>
                 <th>Aluno</th>
                 <th>Plano Contratado</th>
-                <th>Valor Mensal</th>
-                <th>Próximo Vencimento</th>
+                <th>Valor</th>
+                <th>Vencimento</th>
                 <th>Status</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              ${rowsHtml}
+              ${rowsHtml || '<tr><td colspan="6" style="text-align:center; padding: 24px; color: var(--text-muted);">Nenhum aluno cadastrado.</td></tr>'}
             </tbody>
           </table>
         </div>
-      </div>
-    `;
-  },
-
-  renderExerciseLibraryView() {
-    let exercisesHtml = EXERCISE_LIBRARY.map(ex => `
-      <div class="exercise-card">
-        <div class="exercise-visual-header">
-          ${ExerciseVisuals.getSvgForExercise(ex.svgType)}
-          <span class="exercise-tag">${ex.grupo}</span>
-        </div>
-        <div class="exercise-body">
-          <div class="exercise-name">${ex.nome}</div>
-          <div class="exercise-muscles">Sinergistas: ${ex.sinergistas} | Equipamento: ${ex.equipamento}</div>
-          <p style="font-size: 0.82rem; line-height: 1.5; color: #cbd5e1; margin-top: auto;">
-            <strong>Execução Biomecânica:</strong> ${ex.execucao}
-          </p>
-        </div>
-      </div>
-    `).join("");
-
-    return `
-      <div class="card-title">Biblioteca de Exercícios com Representação Biomecânica Animada</div>
-      <div class="exercise-grid">
-        ${exercisesHtml}
       </div>
     `;
   },
@@ -312,313 +536,489 @@ const App = {
   // ==========================================
   renderStudentWorkoutView(student) {
     if (!student || !student.treinoAtual) {
-      return `<div class="card"><p>Nenhum treino prescrito para este aluno ainda.</p></div>`;
+      return `<div class="empty-state"><div class="empty-state-title">Treino em fase de prescrição.</div></div>`;
     }
 
     const treino = student.treinoAtual;
-    const diaAtual = treino.dias[0]; // Treino A padrão
-
-    let exerciciosHtml = diaAtual.exercicios.map((item, idx) => {
-      const exInfo = db.getExerciseById(item.id) || {
-        nome: item.id,
-        grupo: "Geral",
-        sinergistas: "Membros",
-        svgType: "default",
-        execucao: "Execute com boa postura e controle excêntrico."
-      };
-
-      return `
-        <div class="exercise-card" id="ex_card_${idx}">
-          <div class="exercise-visual-header">
-            ${ExerciseVisuals.getSvgForExercise(exInfo.svgType)}
-            <span class="exercise-tag">${exInfo.grupo}</span>
-          </div>
-          <div class="exercise-body">
-            <div class="exercise-name">${exInfo.nome}</div>
-            <div class="exercise-muscles">Alvo: ${exInfo.grupo} | Sinergistas: ${exInfo.sinergistas}</div>
-            
-            <div class="exercise-sets-tracker">
-              <div>
-                <span class="set-badge">${item.series} Séries x ${item.reps} reps</span>
-              </div>
-              <div class="load-input-box">
-                <label style="font-size: 0.75rem; color: var(--text-muted);">Carga:</label>
-                <input type="number" class="load-input" value="${item.cargaKg}" onchange="App.atualizarCarga('${student.id}', 0, ${idx}, this.value)">
-                <span style="font-size: 0.8rem; font-weight: 700;">kg</span>
-              </div>
-              <button class="btn-complete-set ${item.concluido ? 'done' : ''}" onclick="App.toggleConcluido('${student.id}', 0, ${idx})">
-                ${item.concluido ? '✓ Feito' : 'Concluir'}
-              </button>
-            </div>
-
-            <p style="font-size: 0.78rem; color: #94a3b8; line-height: 1.4; margin-top: auto;">
-              💡 <em>${exInfo.execucao}</em>
-            </p>
-          </div>
+    let diasHtml = treino.dias.map((d, dIdx) => `
+      <div class="workout-day-card">
+        <div class="workout-day-header">
+          <div class="workout-day-title">${d.dia}</div>
+          <span style="font-size: 0.8rem; color: #60a5fa; font-weight: 700;">${d.exercicios.length} Exercícios</span>
         </div>
-      `;
-    }).join("");
+
+        <div class="exercise-list">
+          ${d.exercicios.map((ex, exIdx) => {
+            const libEx = db.getExerciseById(ex.id) || { nome: ex.id, grupo: "Geral", execucao: "" };
+            return `
+              <div class="exercise-item ${ex.concluido ? 'completed' : ''}">
+                <div class="exercise-info">
+                  <div class="exercise-name">${libEx.nome}</div>
+                  <div class="exercise-meta">
+                    <strong>${ex.series} séries</strong> × <strong>${ex.reps} reps</strong>
+                    ${ex.cargaKg ? `• <span style="color: #60a5fa;">${ex.cargaKg} kg</span>` : ''}
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-sm" style="background: rgba(255,255,255,0.06); padding: 8px 12px;" onclick="App.abrirModalExercicio('${ex.id}')">
+                    👁️ Ver Movimento
+                  </button>
+                  <button class="btn-check ${ex.concluido ? 'checked' : ''}" onclick="App.toggleExercicio('${student.id}', ${dIdx}, ${exIdx})">
+                    ${ex.concluido ? '✓ Feito' : 'Concluir'}
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `).join("");
 
     return `
-      <!-- SELETOR DO ALUNO (SIMULAÇÃO DE LOGIN) -->
-      <div class="student-select-box">
-        <div>
-          <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Aluno Conectado:</span>
-          <h2 style="font-size: 1.25rem; font-weight: 800;">${student.nome}</h2>
+      <!-- BANNER DO PLANO DE TREINO -->
+      <div class="card" style="border-left: 4px solid var(--primary); margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2 style="font-size: 1.35rem; font-weight: 800;">${treino.nome}</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
+              Prescrito exclusivamente para <strong>${student.nome}</strong> • Foco: ${student.objetivo}
+            </p>
+          </div>
+          <div style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); padding: 8px 16px; border-radius: var(--radius-md); font-size: 0.85rem; color: #60a5fa; font-weight: 700;">
+            🔥 "A Meta é Logo Ali"
+          </div>
+        </div>
+
+        <!-- ALERTA BIOMECÂNICO ESPECÍFICO DO ALUNO -->
+        ${student.alertaArticular && student.alertaArticular !== 'não' ? `
+          <div style="margin-top: 14px; background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 6px; font-size: 0.82rem; color: #fca5a5;">
+            <strong>⚠️ Orientação Biomecânica do Professor Raian:</strong> ${student.alertaArticular}
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- TIMER DE DESCANSO FLUTUANTE / ACIONÁVEL -->
+      <div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; margin-bottom: 20px; background: rgba(15, 23, 42, 0.9);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 1.6rem;">⏱️</span>
+          <div>
+            <div style="font-weight: 700; font-size: 0.95rem;">Descanso entre Séries</div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Tempo recomendado: 60 a 90 segundos</div>
+          </div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 0.8rem; color: var(--text-muted);">Alternar Aluno:</span>
-          <select class="app-select" onchange="App.setStudent(this.value)">
-            ${db.getStudents().map(s => `<option value="${s.id}" ${s.id === student.id ? 'selected' : ''}>${s.nome}</option>`).join("")}
-          </select>
+          <span id="timerDisplay" style="font-size: 1.4rem; font-weight: 800; font-family: monospace; color: #60a5fa;">01:00</span>
+          <button class="btn btn-sm btn-pix" onclick="App.iniciarTimerDescanso(60)">▶ Iniciar 60s</button>
         </div>
       </div>
 
-      <!-- CRONÔMETRO DE DESCANSO FLUTUANTE -->
-      <div class="card" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; background: linear-gradient(135deg, rgba(30, 58, 138, 0.4), rgba(15, 23, 42, 0.8));">
-        <div>
-          <h4 style="font-size: 1rem; font-weight: 800; color: #93c5fd;">⏱️ Cronômetro de Descanso entre Séries</h4>
-          <p style="font-size: 0.8rem; color: var(--text-muted);">Selecione o tempo após cada série para manter o estímulo hipertrófico ideal:</p>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <button class="btn btn-sm" style="background: rgba(255,255,255,0.06);" onclick="App.iniciarTimer(45)">45s</button>
-          <button class="btn btn-sm" style="background: rgba(255,255,255,0.06);" onclick="App.iniciarTimer(60)">60s</button>
-          <button class="btn btn-sm" style="background: rgba(255,255,255,0.06);" onclick="App.iniciarTimer(90)">90s</button>
-          <div id="timerDisplay" style="font-size: 1.5rem; font-weight: 800; color: #38bdf8; min-width: 70px; text-align: center;">00:00</div>
-        </div>
-      </div>
-
-      <!-- CABEÇALHO DO TREINO DO DIA -->
-      <div class="card-title">
-        <span>${diaAtual.dia}</span>
-        <span style="font-size: 0.82rem; color: #34d399; font-weight: 700;">🟢 ${treino.nome}</span>
-      </div>
-
-      <div class="exercise-grid">
-        ${exerciciosHtml}
-      </div>
+      <!-- LISTAGEM DOS DIAS DE TREINO -->
+      ${diasHtml}
     `;
   },
 
   renderStudentFoodDiaryView(student) {
-    if (!student) return "";
+    if (!student) return '';
 
     const diario = student.diarioHoje || [];
-    let totCalorias = Math.round(diario.reduce((acc, f) => acc + f.calorias, 0));
-    let totProt = Math.round(diario.reduce((acc, f) => acc + f.prot, 0));
-    let totCarb = Math.round(diario.reduce((acc, f) => acc + f.carb, 0));
-    let totFat = Math.round(diario.reduce((acc, f) => acc + f.fat, 0));
+    const totalCal = diario.reduce((acc, item) => acc + (item.calorias || 0), 0);
+    const totalProt = diario.reduce((acc, item) => acc + (item.prot || 0), 0);
+    const totalCarb = diario.reduce((acc, item) => acc + (item.carb || 0), 0);
+    const totalFat = diario.reduce((acc, item) => acc + (item.fat || 0), 0);
 
-    let percCalorias = Math.min(100, Math.round((totCalorias / student.metaCalorias) * 100));
-    let percProt = Math.min(100, Math.round((totProt / student.macros.prot) * 100));
-    let percCarb = Math.min(100, Math.round((totCarb / student.macros.carb) * 100));
-    let percFat = Math.min(100, Math.round((totFat / student.macros.fat) * 100));
-
-    let itensHtml = diario.map((item, idx) => {
-      const food = db.getFoodById(item.alimentoId) || { nome: item.alimentoId };
-      return `
-        <div class="food-item-row">
-          <div>
-            <strong>${food.nome}</strong> (${item.qtd} porção)<br>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">${item.refeicao} | P: ${item.prot.toFixed(1)}g | C: ${item.carb.toFixed(1)}g | G: ${item.fat.toFixed(1)}g</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <strong style="color: #38bdf8;">${Math.round(item.calorias)} kcal</strong>
-            <button style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px;" onclick="App.removerAlimento('${student.id}', ${idx})">✕</button>
-          </div>
-        </div>
-      `;
-    }).join("");
+    const metaCal = student.metaCalorias || 2000;
+    const percCal = Math.min(100, Math.round((totalCal / metaCal) * 100));
 
     return `
-      <!-- VISÃO GERAL DE CALORIAS E MACROS CONTABILIZADOS -->
-      <div class="card calorie-overview-card">
-        <div class="calorie-circle-box">
-          <div class="calorie-big-num">${totCalorias}</div>
-          <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">CONSUMIDAS DE ${student.metaCalorias} KCAL</div>
-          <div style="font-size: 0.8rem; color: #10b981; font-weight: 700; margin-top: 6px;">
-            ${student.metaCalorias - totCalorias > 0 ? `Restam ${student.metaCalorias - totCalorias} kcal hoje` : 'Meta calórica atingida!'}
-          </div>
+      <!-- RESUMO DE CALORIAS E MACROS -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">
+          <span>Metas Nutricionais Diárias</span>
+          <span style="color: #60a5fa; font-size: 0.9rem;">${totalCal} / ${metaCal} kcal (${percCal}%)</span>
         </div>
 
-        <div class="macro-bars-container">
-          <!-- PROTEÍNAS -->
-          <div class="macro-bar-item">
-            <div class="macro-label-row">
-              <span style="color: #f43f5e;">Proteínas</span>
-              <span>${totProt}g / ${student.macros.prot}g (${percProt}%)</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill fill-prot" style="width: ${percProt}%;"></div></div>
+        <div style="background: rgba(255, 255, 255, 0.08); height: 12px; border-radius: 999px; overflow: hidden; margin: 12px 0 20px;">
+          <div style="background: linear-gradient(90deg, #3b82f6, #10b981); height: 100%; width: ${percCal}%; transition: width 0.4s ease;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; text-align: center;">
+          <div style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Proteínas</div>
+            <div style="font-size: 1.2rem; font-weight: 800; color: #60a5fa;">${totalProt.toFixed(0)}g / ${student.macros.prot}g</div>
           </div>
-          <!-- CARBOIDRATOS -->
-          <div class="macro-bar-item">
-            <div class="macro-label-row">
-              <span style="color: #38bdf8;">Carboidratos</span>
-              <span>${totCarb}g / ${student.macros.carb}g (${percCarb}%)</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill fill-carb" style="width: ${percCarb}%;"></div></div>
+          <div style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Carboidratos</div>
+            <div style="font-size: 1.2rem; font-weight: 800; color: #34d399;">${totalCarb.toFixed(0)}g / ${student.macros.carb}g</div>
           </div>
-          <!-- GORDURAS -->
-          <div class="macro-bar-item">
-            <div class="macro-label-row">
-              <span style="color: #eab308;">Gorduras</span>
-              <span>${totFat}g / ${student.macros.fat}g (${percFat}%)</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill fill-fat" style="width: ${percFat}%;"></div></div>
+          <div style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Gorduras</div>
+            <div style="font-size: 1.2rem; font-weight: 800; color: #fbbf24;">${totalFat.toFixed(0)}g / ${student.macros.fat}g</div>
+          </div>
+          <div style="background: rgba(255, 255, 255, 0.03); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Água Alvo</div>
+            <div style="font-size: 1.2rem; font-weight: 800; color: #38bdf8;">${student.macros.agua} L/dia</div>
           </div>
         </div>
       </div>
 
-      <!-- REGISTRADOR RÁPIDO DE ALIMENTOS (TABELA TACO) -->
+      <!-- REGISTRO DE ALIMENTOS DO DIA -->
       <div class="card">
-        <div class="card-title">Registrar Alimento Consumido (Tabela TACO Integrada)</div>
-        <input type="text" class="search-food-input" placeholder="🔍 Digite para buscar alimentos (ex: frango, arroz, ovo, aveia, whey...)" oninput="App.buscarAlimento(this.value)">
-        
-        <div id="foodSearchResults" class="food-results-list">
-          <!-- Resultados dinâmicos da Tabela TACO -->
+        <div class="card-title">
+          <span>Refeições Registradas Hoje</span>
+          <button class="btn btn-sm btn-pix" onclick="App.abrirModalAdicionarAlimento('${student.id}')">
+            + Adicionar Alimento
+          </button>
         </div>
-      </div>
 
-      <!-- ALIMENTOS REGISTRADOS HOJE -->
-      <div class="card">
-        <div class="card-title">Refeições Registradas Hoje</div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          ${itensHtml.length > 0 ? itensHtml : '<p style="color: var(--text-muted); font-size: 0.9rem;">Nenhum alimento registrado ainda hoje. Busque e adicione acima!</p>'}
+        <div style="margin-top: 14px;">
+          ${diario.length === 0 ? `
+            <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.9rem;">
+              Nenhum alimento registrado hoje ainda. Clique em "+ Adicionar Alimento" para contabilizar suas calorias!
+            </div>
+          ` : diario.map((item, idx) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px;">
+              <div>
+                <strong>${item.refeicao}</strong>: ${item.alimentoId ? (db.getFoodById(item.alimentoId)?.nome || item.alimentoId) : 'Alimento'} (${item.qtd} porção)
+                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                  ${item.calorias} kcal • P: ${item.prot}g • C: ${item.carb}g • G: ${item.fat}g
+                </div>
+              </div>
+              <button class="btn-sm" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer;" onclick="App.removerAlimento('${student.id}', ${idx})">
+                Remover
+              </button>
+            </div>
+          `).join("")}
         </div>
       </div>
     `;
   },
 
   renderStudentProfileView(student) {
+    if (!student) return '';
+
+    return `
+      <div class="card" style="border-left: 4px solid var(--primary); margin-bottom: 20px;">
+        <h2 style="font-size: 1.3rem; font-weight: 800;">${student.nome}</h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
+          ${student.idade} anos • ${student.genero} • ${student.profissao}
+        </p>
+
+        <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; font-size: 0.85rem;">
+          <div style="background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+            <span style="color: var(--text-muted);">Peso Corporal:</span><br>
+            <strong style="font-size: 1.1rem; color: #fff;">${student.peso} kg</strong>
+          </div>
+          <div style="background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+            <span style="color: var(--text-muted);">Altura:</span><br>
+            <strong style="font-size: 1.1rem; color: #fff;">${student.altura} cm</strong>
+          </div>
+          <div style="background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+            <span style="color: var(--text-muted);">IMC Calculado:</span><br>
+            <strong style="font-size: 1.1rem; color: #38bdf8;">${student.imc}</strong> (${student.classificacaoImc})
+          </div>
+          <div style="background: rgba(255,255,255,0.03); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+            <span style="color: var(--text-muted);">Meta de Peso:</span><br>
+            <strong style="font-size: 1.1rem; color: #34d399;">${student.metaPeso}</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- PARECER TÉCNICO E CONDUTA CLÍNICA -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-title">
+          <span>⚠️ Parecer Clínico do Professor Raian Bispo</span>
+        </div>
+        <div style="background: rgba(239, 68, 68, 0.08); border-left: 3px solid #ef4444; padding: 14px; border-radius: 8px; font-size: 0.88rem; color: #fca5a5; line-height: 1.6;">
+          <p style="margin-bottom: 8px;"><strong>• Alerta Farmacológico / Pressórico:</strong> ${student.alertaFarmacologico || 'Nenhuma contraindicação relatada.'}</p>
+          <p><strong>• Alerta Articular / Biomecânico:</strong> ${student.alertaArticular || 'Aparelho locomotor sem restrições musculoesqueléticas.'}</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span>Orientação de Hábitos e Recuperação</span>
+        </div>
+        <div style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.7;">
+          <p>💧 <strong>Hidratação Obrigatória:</strong> Mínimo de ${student.macros.agua} litros de água pura ao longo do dia para permitir o transporte de nutrientes e a integridade articular.</p>
+          <p style="margin-top: 8px;">💤 <strong>Sono Reparador:</strong> Interromper consumo de qualquer estimulante (café, energético, pré-treino) após as 13h para permitir o reparo do tecido muscular.</p>
+        </div>
+      </div>
+    `;
+  },
+
+  renderStudentPlanView(student) {
+    if (!student) return '';
+
+    return `
+      <div class="card" style="border-left: 4px solid #10b981; margin-bottom: 20px;">
+        <h2 style="font-size: 1.35rem; font-weight: 800; color: #fff;">Sua Consultoria On-Line</h2>
+        <div style="color: #60a5fa; font-weight: 700; margin-top: 4px; font-size: 0.95rem;">
+          Professor Raian Bispo • A Meta é Logo Ali
+        </div>
+
+        <div style="margin-top: 20px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <span style="font-size: 0.82rem; color: var(--text-muted);">Plano Contratado:</span>
+              <h3 style="font-size: 1.15rem; margin-top: 2px;">${student.financeiro.plano}</h3>
+            </div>
+            <div>
+              <span style="font-size: 0.82rem; color: var(--text-muted);">Valor:</span>
+              <h3 style="font-size: 1.35rem; color: #34d399; margin-top: 2px;">R$ ${student.financeiro.valor.toFixed(2)}</h3>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Status do Pagamento:</span>
+            <span class="badge-status ${student.financeiro.status}">${student.financeiro.status.replace('_', ' ')}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD DE PAGAMENTO PIX DIRETO -->
+      <div class="card" style="text-align: center; padding: 28px 20px;">
+        <div style="font-size: 2.2rem; margin-bottom: 10px;">💳</div>
+        <h3 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 6px;">Pagamento via Pix</h3>
+        <p style="font-size: 0.88rem; color: var(--text-muted); max-width: 440px; margin: 0 auto 18px;">
+          Para ativação ou renovação da sua consultoria, utilize a chave Pix oficial do Professor Raian Bispo abaixo:
+        </p>
+
+        <div style="background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: var(--radius-md); padding: 14px; max-width: 380px; margin: 0 auto 16px;">
+          <div style="font-size: 0.78rem; color: #60a5fa; text-transform: uppercase; font-weight: 700;">Chave Pix (Telefone)</div>
+          <div style="font-size: 1.35rem; font-weight: 800; letter-spacing: 1px; color: #fff; margin: 4px 0;">${PIX_KEY}</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Favorecido: <strong>Raian Bispo</strong></div>
+        </div>
+
+        <button class="btn btn-pix" style="padding: 12px 24px; font-size: 0.95rem; margin: 0 auto;" onclick="App.copiarChavePix()">
+          📋 Copiar Chave Pix (${PIX_KEY})
+        </button>
+      </div>
+    `;
+  },
+
+  // ==========================================
+  // BIBLIOTECA DE EXERCÍCIOS
+  // ==========================================
+  renderExerciseLibraryView() {
+    const list = db.getExerciseLibrary();
     return `
       <div class="card">
-        <div class="card-title">Dados Clínicos & Anamnese do Aluno</div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; font-size: 0.9rem;">
-          <div><span style="color: var(--text-muted);">Nome:</span><br><strong>${student.nome}</strong></div>
-          <div><span style="color: var(--text-muted);">Idade / Sexo:</span><br><strong>${student.idade} anos (${student.genero})</strong></div>
-          <div><span style="color: var(--text-muted);">Peso Atual / Altura:</span><br><strong>${student.peso} kg / ${student.altura} cm</strong></div>
-          <div><span style="color: var(--text-muted);">IMC:</span><br><strong>${student.imc} (${student.classificacaoImc})</strong></div>
-          <div><span style="color: var(--text-muted);">Objetivo:</span><br><strong>${student.objetivo}</strong></div>
-          <div><span style="color: var(--text-muted);">Meta de Peso:</span><br><strong>${student.metaPeso}</strong></div>
-          <div><span style="color: var(--text-muted);">Nível de Treino:</span><br><strong>${student.nivelTreino}</strong></div>
-          <div><span style="color: var(--text-muted);">Plano Contratado:</span><br><strong>${student.financeiro.plano} (R$ ${student.financeiro.valor.toFixed(2)})</strong></div>
+        <div class="card-title">
+          <span>Biblioteca Biomecânica de Exercícios (${list.length})</span>
+        </div>
+        <div class="grid-exercises" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 16px;">
+          ${list.map(ex => `
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; cursor: pointer;" onclick="App.abrirModalExercicio('${ex.id}')">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h4 style="font-size: 1rem; font-weight: 700;">${ex.nome}</h4>
+                <span style="font-size: 0.75rem; background: rgba(59,130,246,0.15); color: #60a5fa; padding: 2px 8px; border-radius: 4px;">${ex.grupo}</span>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">${ex.execucao}</p>
+              <div style="margin-top: 12px; font-size: 0.8rem; color: #38bdf8; font-weight: 600;">
+                ▶ Ver Animação do Movimento
+              </div>
+            </div>
+          `).join("")}
         </div>
       </div>
     `;
   },
 
   // ==========================================
-  // AÇÕES INTERATIVAS
+  // AÇÕES, MODAIS E UTILITÁRIOS
   // ==========================================
-  verComoAluno(studentId) {
-    this.activeStudentId = studentId;
-    this.switchRole("aluno");
-  },
-
   copiarChavePix() {
-    navigator.clipboard.writeText("raianmateus10@gmail.com");
-    alert("✅ Chave Pix copiada com sucesso: raianmateus10@gmail.com (Professor Raian Bispo)");
+    navigator.clipboard.writeText(PIX_KEY);
+    alert(`✅ Chave Pix (Telefone) copiada com sucesso:\n\n${PIX_KEY}\n\nFavorecido: Raian Bispo`);
   },
 
   enviarCobrancaWhats(studentId) {
     const s = db.getStudentById(studentId);
-    const msg = encodeURIComponent(`Olá, ${s.nome}! Aqui é o Professor Raian Bispo. Passando para lembrar da renovação da sua consultoria on-line (A Meta é Logo Ali!). Segue a chave Pix: raianmateus10@gmail.com no valor de R$ ${s.financeiro.valor.toFixed(2)}. Bons treinos e foco na meta!`);
-    window.open(`https://wa.me/55${s.whatsapp.replace(/\D/g, '')}?text=${msg}`, '_blank');
+    if (!s) return;
+    const fone = (s.telefone || s.whatsapp || '').replace(/\D/g, '');
+    const msg = encodeURIComponent(`Olá, ${s.nome}! Aqui é o Professor Raian Bispo. Passando para lembrar da renovação da sua consultoria on-line (A Meta é Logo Ali!). Segue a chave Pix telefone: ${PIX_KEY} no valor de R$ ${(s.financeiro.valor || 0).toFixed(2)}. Bons treinos e foco na meta!`);
+    window.open(`https://wa.me/55${fone}?text=${msg}`, '_blank');
   },
 
   marcarComoPago(studentId) {
     const s = db.getStudentById(studentId);
+    if (!s) return;
     s.financeiro.status = "em_dia";
     db.updateStudent(s);
-    alert(`✅ Pagamento confirmado para ${s.nome}!`);
+    this.mostrarToast(`✅ Pagamento confirmado para ${s.nome}!`, "success");
     this.render();
   },
 
-  atualizarCarga(studentId, diaIdx, exIdx, carga) {
+  toggleExercicio(studentId, dIdx, exIdx) {
     const s = db.getStudentById(studentId);
-    s.treinoAtual.dias[diaIdx].exercicios[exIdx].cargaKg = parseFloat(carga) || 0;
-    db.updateStudent(s);
-  },
-
-  toggleConcluido(studentId, diaIdx, exIdx) {
-    const s = db.getStudentById(studentId);
-    const item = s.treinoAtual.dias[diaIdx].exercicios[exIdx];
-    item.concluido = !item.concluido;
+    if (!s || !s.treinoAtual || !s.treinoAtual.dias[dIdx]) return;
+    const ex = s.treinoAtual.dias[dIdx].exercicios[exIdx];
+    ex.concluido = !ex.concluido;
     db.updateStudent(s);
     this.render();
   },
 
-  iniciarTimer(segundos) {
+  iniciarTimerDescanso(segundos = 60) {
     clearInterval(this.restTimerInterval);
     let restante = segundos;
     const display = document.getElementById("timerDisplay");
-    
+
     this.restTimerInterval = setInterval(() => {
       restante--;
+      const m = Math.floor(restante / 60).toString().padStart(2, "0");
+      const s = (restante % 60).toString().padStart(2, "0");
+      if (display) display.innerText = `${m}:${s}`;
+
       if (restante <= 0) {
         clearInterval(this.restTimerInterval);
-        if (display) display.innerText = "PRONTO!";
-        try { navigator.vibrate([200, 100, 200]); } catch(e){}
-      } else {
-        const mins = String(Math.floor(restante / 60)).padStart(2, '0');
-        const secs = String(restante % 60).padStart(2, '0');
-        if (display) display.innerText = `${mins}:${secs}`;
+        if (display) display.innerText = "BORA! 🔥";
+        this.mostrarToast("⏰ Tempo de descanso encerrado! Próxima série!", "info");
       }
     }, 1000);
   },
 
-  buscarAlimento(termo) {
-    const resultsContainer = document.getElementById("foodSearchResults");
-    if (!termo || termo.length < 2) {
-      resultsContainer.innerHTML = "";
-      return;
+  abrirModalExercicio(exerciseId) {
+    let modal = document.getElementById("exerciseModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "exerciseModal";
+      modal.className = "modal-overlay";
+      document.body.appendChild(modal);
     }
 
-    const filtrados = TACO_FOOD_DATABASE.filter(f => f.nome.toLowerCase().includes(termo.toLowerCase())).slice(0, 5);
-    
-    resultsContainer.innerHTML = filtrados.map(f => `
-      <div class="food-item-row" onclick="App.adicionarAlimento('${f.id}')">
-        <div>
-          <strong>${f.nome}</strong> (${f.porcao})<br>
-          <span style="font-size: 0.75rem; color: var(--text-muted);">${f.categoria} | P: ${f.prot}g | C: ${f.carb}g | G: ${f.fat}g</span>
+    const ex = db.getExerciseById(exerciseId);
+    if (!ex) return;
+
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span>🏋️</span> ${ex.nome}
+          </div>
+          <button class="modal-close" onclick="App.fecharModalExercicio()">×</button>
         </div>
-        <button class="btn btn-sm btn-pix">➕ Adicionar</button>
+
+        <div class="visual-card">
+          <div class="svg-container">
+            ${VisualBiomechanics.generateExerciseSVG(ex.svgType)}
+          </div>
+          <div class="animation-controls">
+            <button class="btn btn-sm btn-pix" onclick="VisualBiomechanics.togglePlayAnimation()">
+              ⏸ Pausar / Reproduzir
+            </button>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Animação Biomecânica em Tempo Real</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px; font-size: 0.85rem; line-height: 1.6;">
+          <p><strong>🎯 Grupo Muscular:</strong> ${ex.grupo}</p>
+          <p><strong>⚡ Sinergistas:</strong> ${ex.sinergistas || 'Não especificado'}</p>
+          <p style="margin-top: 6px;"><strong>⚙️ Instruções de Execução:</strong> ${ex.execucao}</p>
+          ${ex.videoHint ? `<p style="margin-top: 6px; color: #60a5fa;"><strong>💡 Dica do Professor Raian:</strong> ${ex.videoHint}</p>` : ''}
+        </div>
       </div>
-    `).join("");
+    `;
+    modal.style.display = "flex";
   },
 
-  adicionarAlimento(foodId) {
-    const student = db.getStudentById(this.activeStudentId);
-    const food = db.getFoodById(foodId);
-    if (!student || !food) return;
+  fecharModalExercicio() {
+    const modal = document.getElementById("exerciseModal");
+    if (modal) modal.style.display = "none";
+  },
 
-    if (!student.diarioHoje) student.diarioHoje = [];
-    student.diarioHoje.push({
-      refeicao: "Refeição Registrada",
-      alimentoId: food.id,
-      qtd: 1,
-      calorias: food.calorias,
-      prot: food.prot,
-      carb: food.carb,
-      fat: food.fat
+  abrirModalAdicionarAlimento(studentId) {
+    let modal = document.getElementById("foodModal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "foodModal";
+      modal.className = "modal-overlay";
+      document.body.appendChild(modal);
+    }
+
+    const foods = db.getFoodDatabase();
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="modal-title">
+            <span>🥗</span> Registrar Alimento
+          </div>
+          <button class="modal-close" onclick="App.fecharModalAdicionarAlimento()">×</button>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 14px;">
+          <div>
+            <label class="input-label">Refeição</label>
+            <select id="modalRefeicao" class="input-field">
+              <option value="Café da Manhã">Café da Manhã</option>
+              <option value="Almoço">Almoço</option>
+              <option value="Lanche da Tarde">Lanche da Tarde</option>
+              <option value="Jantar">Jantar</option>
+              <option value="Pós-Treino">Pós-Treino</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="input-label">Alimento (Tabela TACO)</label>
+            <select id="modalAlimentoId" class="input-field">
+              ${foods.map(f => `<option value="${f.id}">${f.nome} - ${f.porcao} (${f.calorias} kcal)</option>`).join("")}
+            </select>
+          </div>
+
+          <div>
+            <label class="input-label">Quantidade de Porções</label>
+            <input type="number" id="modalQtd" class="input-field" value="1" min="0.5" step="0.5">
+          </div>
+
+          <button class="btn-login" style="margin-top: 8px;" onclick="App.salvarAlimento('${studentId}')">
+            + Salvar no Meu Diário
+          </button>
+        </div>
+      </div>
+    `;
+    modal.style.display = "flex";
+  },
+
+  fecharModalAdicionarAlimento() {
+    const modal = document.getElementById("foodModal");
+    if (modal) modal.style.display = "none";
+  },
+
+  salvarAlimento(studentId) {
+    const s = db.getStudentById(studentId);
+    const ref = document.getElementById("modalRefeicao").value;
+    const foodId = document.getElementById("modalAlimentoId").value;
+    const qtd = parseFloat(document.getElementById("modalQtd").value) || 1;
+    const food = db.getFoodById(foodId);
+
+    if (!s || !food) return;
+
+    if (!s.diarioHoje) s.diarioHoje = [];
+    s.diarioHoje.push({
+      refeicao: ref,
+      alimentoId: foodId,
+      qtd: qtd,
+      calorias: Math.round(food.calorias * qtd),
+      prot: +(food.prot * qtd).toFixed(1),
+      carb: +(food.carb * qtd).toFixed(1),
+      fat: +(food.fat * qtd).toFixed(1)
     });
 
-    db.updateStudent(student);
+    db.updateStudent(s);
+    this.fecharModalAdicionarAlimento();
+    this.mostrarToast("✅ Alimento registrado com sucesso no seu diário!", "success");
     this.render();
   },
 
   removerAlimento(studentId, idx) {
-    const student = db.getStudentById(studentId);
-    if (student && student.diarioHoje) {
-      student.diarioHoje.splice(idx, 1);
-      db.updateStudent(student);
+    const s = db.getStudentById(studentId);
+    if (s && s.diarioHoje) {
+      s.diarioHoje.splice(idx, 1);
+      db.updateStudent(s);
       this.render();
     }
   },
 
-  // ==========================================
-  // SINCRONIZAÇÃO EM TEMPO REAL & NOTIFICAÇÕES
-  // ==========================================
   abrirModalSincronizacao() {
     let modal = document.getElementById("syncModal");
     if (!modal) {
@@ -627,8 +1027,6 @@ const App = {
       modal.className = "modal-overlay";
       document.body.appendChild(modal);
     }
-
-    const students = db.getStudents();
 
     modal.innerHTML = `
       <div class="modal-content">
@@ -640,20 +1038,15 @@ const App = {
         </div>
 
         <div style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px;">
-          O aplicativo já está configurado para ler automaticamente a sua Planilha do Google Forms na nuvem em tempo real.
+          O aplicativo lê automaticamente as respostas da sua Planilha do Google Forms em nuvem.
         </div>
 
-        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px;">
-          <button class="btn btn-sm btn-pix" style="width: 100%; justify-content: center; font-size: 0.95rem; padding: 14px;" onclick="App.executarSincronizacaoPlanilha()">
-            ⚡ Forçar Sincronização Agora com a Planilha
-          </button>
-        </div>
+        <button class="btn btn-sm btn-pix" style="width: 100%; justify-content: center; font-size: 0.95rem; padding: 14px;" onclick="App.executarSincronizacaoPlanilha()">
+          ⚡ Forçar Sincronização Agora com a Planilha
+        </button>
 
         <div style="display: flex; gap: 10px; margin-top: 14px;">
-          <button class="btn btn-sm" style="flex: 1; justify-content: center;" onclick="App.restaurarAlunosOriginais()">
-            🔄 Restaurar Iniciais (${students.length})
-          </button>
-          <button class="btn btn-sm" style="background: rgba(239, 68, 68, 0.15); color: #f87171; justify-content: center;" onclick="App.fecharModalSincronizacao()">
+          <button class="btn btn-sm" style="flex: 1; justify-content: center;" onclick="App.fecharModalSincronizacao()">
             Fechar
           </button>
         </div>
@@ -668,22 +1061,15 @@ const App = {
   },
 
   async executarSincronizacaoPlanilha() {
-    this.mostrarToast("Buscando respostas atualizadas na planilha...", "info");
+    this.mostrarToast("Buscando respostas atualizadas na nuvem...", "info");
     const res = await db.syncWithGoogleSheetsGViz();
+    this.fecharModalSincronizacao();
     if (res.success) {
-      this.fecharModalSincronizacao();
-      this.mostrarToast(`✅ ${res.count} alunos atualizados com sucesso da nuvem!`, "success");
+      this.mostrarToast(`✅ Base sincronizada: ${res.count} alunos ativos.`, "success");
       this.render();
     } else {
-      this.mostrarToast(`⚠️ Erro na sincronização: ${res.error}`, "info");
+      this.mostrarToast(`⚠️ Aviso: ${res.error}`, "info");
     }
-  },
-
-  restaurarAlunosOriginais() {
-    db.resetToDefault();
-    this.fecharModalSincronizacao();
-    this.mostrarToast("✅ Alunos restaurados com sucesso!", "success");
-    this.render();
   },
 
   mostrarToast(mensagem, tipo = "info") {

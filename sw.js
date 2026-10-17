@@ -1,15 +1,18 @@
-// Service Worker para Consultoria Esportiva PWA - v5
-const CACHE_NAME = 'consultoria-v5';
+// Service Worker para Consultoria Esportiva PWA - v6 (Auto-Update e Cache Clean)
+const CACHE_NAME = 'consultoria-v6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './css/app.css',
-  './js/database.js',
-  './js/visuals.js',
-  './js/app.js',
-  './manifest.json',
-  './assets/icon-192.png',
-  './assets/icon-512.png'
+  './js/database.js?v=6',
+  './js/visuals.js?v=6',
+  './js/app.js?v=6',
+  './manifest.json?v=6',
+  './assets/logo.jpg',
+  './assets/icon-192.png?v=6',
+  './assets/icon-512.png?v=6',
+  './assets/apple-touch-icon.png?v=6',
+  './assets/favicon.png?v=6'
 ];
 
 self.addEventListener('install', (event) => {
@@ -27,6 +30,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) {
+            console.log('🧹 Limpando cache antigo:', key);
             return caches.delete(key);
           }
         })
@@ -52,4 +56,3 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(event.request))
   );
 });
-

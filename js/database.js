@@ -165,271 +165,43 @@ const TACO_FOOD_DATABASE = [
   { id: "castanha_caju", nome: "Castanha de Caju Torrada", porcao: "15g (5 unidades)", calorias: 86, prot: 2.7, carb: 4.5, fat: 6.5, categoria: "Gorduras" }
 ];
 
-// 3. BASE DE DADOS DOS ALUNOS (PRÉ-CARREGADOS COM OS DADOS REAIS DO GOOGLE DRIVE)
-const INITIAL_STUDENTS = [
-  {
-    id: "aluno_raian",
-    nome: "Raian Mateus Santos Bispo",
-    email: "raianmateus10@gmail.com",
-    whatsapp: "71 9 82305941",
-    idade: 27,
-    genero: "Masculino",
-    peso: 103,
-    altura: 180,
-    imc: 31.79,
-    classificacaoImc: "Composição Atlética (Atleta)",
-    metaPeso: "Ganho Limpo (Lean Bulk)",
-    objetivo: "Hipertrofia Máxima",
-    nivelTreino: "Avançado (> 2 anos)",
-    profissao: "Professor de Educação Física",
-    nivelTrabalho: "Ativo / Pesado",
-    tmb: 2025,
-    get: 3240,
-    metaCalorias: 3490,
-    macros: { prot: 210, carb: 448, fat: 95, agua: 4.0 },
-    financeiro: {
-      plano: "Consultoria Premium Completa",
-      valor: 250.00,
-      vencimento: "2026-11-10",
-      status: "em_dia", // em_dia, a_vencer, atrasado
-      metodo: "Pix",
-      historico: [
-        { data: "2026-10-10", valor: 250.00, status: "Pago", comprovante: "PIX-1010-RAIAN" }
-      ]
-    },
-    treinoAtual: {
-      nome: "Push / Pull / Legs (PPL Avançado 3x)",
-      dias: [
-        {
-          dia: "Treino A - Push (Peito, Ombros e Tríceps)",
-          exercicios: [
-            { id: "supino_reto", series: 4, reps: "6 a 8", cargaKg: 40, concluido: true },
-            { id: "supino_inclinado_halteres", series: 3, reps: "8 a 10", cargaKg: 28, concluido: true },
-            { id: "crossover_polia", series: 3, reps: "12 a 15", cargaKg: 15, concluido: false },
-            { id: "desenvolvimento_halteres", series: 4, reps: "8 a 10", cargaKg: 22, concluido: false },
-            { id: "triceps_testa", series: 4, reps: "10 a 12", cargaKg: 14, concluido: false }
-          ]
-        },
-        {
-          dia: "Treino B - Pull (Costas, Deltoide Posterior e Bíceps)",
-          exercicios: [
-            { id: "puxada_alta", series: 4, reps: "8 a 10", cargaKg: 70, concluido: false },
-            { id: "remada_curvada", series: 4, reps: "8", cargaKg: 35, concluido: false },
-            { id: "rosca_direta", series: 4, reps: "8 a 10", cargaKg: 16, concluido: false }
-          ]
-        },
-        {
-          dia: "Treino C - Legs (Inferiores Completos)",
-          exercicios: [
-            { id: "agachamento_livre", series: 4, reps: "6 a 8", cargaKg: 50, concluido: false },
-            { id: "leg_press_45", series: 4, reps: "10 a 12", cargaKg: 240, concluido: false },
-            { id: "mesa_flexora", series: 4, reps: "10 a 12", cargaKg: 45, concluido: false }
-          ]
-        }
-      ]
-    },
-    diarioHoje: [
-      { refeicao: "Café da Manhã", alimentoId: "ovo_cozido", qtd: 3, calorias: 234, prot: 19.5, carb: 1.8, fat: 15.9 },
-      { refeicao: "Café da Manhã", alimentoId: "pao_frances", qtd: 2, calorias: 300, prot: 8.0, carb: 58.6, fat: 3.2 },
-      { refeicao: "Pós-Treino (05h05)", alimentoId: "whey_protein", qtd: 1.2, calorias: 144, prot: 28.8, carb: 3.0, fat: 1.8 },
-      { refeicao: "Almoço", alimentoId: "frango_grelhado", qtd: 2, calorias: 318, prot: 64.0, carb: 0.0, fat: 5.0 },
-      { refeicao: "Almoço", alimentoId: "arroz_branco", qtd: 2.5, calorias: 320, prot: 6.2, carb: 70.2, fat: 0.5 },
-      { refeicao: "Almoço", alimentoId: "feijao_carioca", qtd: 1.5, calorias: 114, prot: 7.2, carb: 20.4, fat: 0.7 }
-    ]
-  },
-  {
-    id: "aluno_maylon",
-    nome: "Maylon",
-    email: "matheus.smarciel@gmail.com",
-    whatsapp: "11 986076369",
-    idade: 30,
-    genero: "Masculino",
-    peso: 125,
-    altura: 185,
-    imc: 36.52,
-    classificacaoImc: "Obesidade Grau 2",
-    metaPeso: "Chegar a 100 kg",
-    objetivo: "Emagrecimento / Definição",
-    nivelTreino: "Iniciante (< 6 meses)",
-    profissao: "Sedentário",
-    nivelTrabalho: "Sedentário",
-    tmb: 2261,
-    get: 2826,
-    metaCalorias: 2276,
-    macros: { prot: 188, carb: 212, fat: 75, agua: 4.4 },
-    financeiro: {
-      plano: "Consultoria Mensal",
-      valor: 200.00,
-      vencimento: "2026-10-20",
-      status: "a_vencer",
-      metodo: "Pix",
-      historico: [
-        { data: "2026-09-20", valor: 200.00, status: "Pago", comprovante: "PIX-MAYLON-09" }
-      ]
-    },
-    treinoAtual: {
-      nome: "Adaptação Anatômica & Proteção Articular 3x",
-      dias: [
-        {
-          dia: "Treino A - Inferiores & Core Seguro",
-          exercicios: [
-            { id: "leg_press_45", series: 4, reps: "10 a 12", cargaKg: 80, concluido: true },
-            { id: "box_squat_cadeira", series: 3, reps: "12", cargaKg: 0, concluido: true },
-            { id: "mesa_flexora", series: 4, reps: "12", cargaKg: 25, concluido: false }
-          ]
-        },
-        {
-          dia: "Treino B - Superiores Empurrar e Puxar",
-          exercicios: [
-            { id: "puxada_alta", series: 4, reps: "10", cargaKg: 40, concluido: false },
-            { id: "desenvolvimento_halteres", series: 3, reps: "10", cargaKg: 10, concluido: false }
-          ]
-        }
-      ]
-    },
-    diarioHoje: [
-      { refeicao: "Café da Manhã", alimentoId: "ovo_cozido", qtd: 2, calorias: 156, prot: 13.0, carb: 1.2, fat: 10.6 },
-      { refeicao: "Almoço", alimentoId: "frango_grelhado", qtd: 1.8, calorias: 286, prot: 57.6, carb: 0.0, fat: 4.5 },
-      { refeicao: "Almoço", alimentoId: "arroz_branco", qtd: 1.5, calorias: 192, prot: 3.7, carb: 42.1, fat: 0.3 }
-    ]
-  },
-  {
-    id: "aluno_matheus",
-    nome: "Matheus Santana",
-    email: "matheus.smarciel@gmail.com",
-    whatsapp: "11 999999999",
-    idade: 30,
-    genero: "Masculino",
-    peso: 130,
-    altura: 179,
-    imc: 40.57,
-    classificacaoImc: "Obesidade Grau 3 (Mórbida)",
-    metaPeso: "Chegar a 90 kg",
-    objetivo: "Emagrecimento / Saúde",
-    nivelTreino: "Iniciante",
-    profissao: "Tecnologia",
-    nivelTrabalho: "Sedentário",
-    tmb: 2274,
-    get: 2843,
-    metaCalorias: 2293,
-    macros: { prot: 170, carb: 235, fat: 75, agua: 4.6 },
-    financeiro: {
-      plano: "Consultoria Trimestral",
-      valor: 550.00,
-      vencimento: "2026-10-05",
-      status: "atrasado",
-      metodo: "Pix",
-      historico: [
-        { data: "2026-07-05", valor: 550.00, status: "Pago", comprovante: "PIX-MATHEUS-07" }
-      ]
-    },
-    treinoAtual: {
-      nome: "Treino em Casa Sem Impacto 3x",
-      dias: [
-        {
-          dia: "Treino A - Membros Inferiores & Core Seguro",
-          exercicios: [
-            { id: "box_squat_cadeira", series: 3, reps: "10 a 12", cargaKg: 0, concluido: true }
-          ]
-        }
-      ]
-    },
-    diarioHoje: []
-  },
-  {
-    id: "aluno_raianderson",
-    nome: "Raianderson",
-    email: "matheus.smarciel@gmail.com",
-    whatsapp: "11986076369",
-    idade: 28,
-    genero: "Masculino",
-    peso: 120,
-    altura: 180,
-    imc: 37.04,
-    classificacaoImc: "Obesidade Grau 2",
-    metaPeso: "Chegar a 90 kg (-30 kg)",
-    objetivo: "Emagrecimento / Definição Muscular",
-    nivelTreino: "Iniciante (Menos de 6 meses)",
-    profissao: "Tecnologia",
-    nivelTrabalho: "Sedentário",
-    tmb: 2190,
-    get: 2956,
-    metaCalorias: 2400,
-    macros: { prot: 180, carb: 260, fat: 70, agua: 4.2 },
-    financeiro: {
-      plano: "Consultoria Mensal",
-      valor: 200.00,
-      vencimento: "2026-11-17",
-      status: "em_dia",
-      metodo: "Pix",
-      historico: [
-        { data: "2026-10-17", valor: 200.00, status: "Pago", comprovante: "PIX-RAIANDERSON" }
-      ]
-    },
-    treinoAtual: {
-      nome: "Treino Academia 3x (Baixo Impacto Articular)",
-      dias: [
-        {
-          dia: "Treino A - Superiores (Peitoral & Costas)",
-          exercicios: [
-            { id: "supino_reto", series: 4, reps: "10 a 12", cargaKg: 40, concluido: false },
-            { id: "puxada_alta", series: 4, reps: "10 a 12", cargaKg: 45, concluido: false }
-          ]
-        },
-        {
-          dia: "Treino B - Membros Inferiores Protegidos (Evitar impacto)",
-          exercicios: [
-            { id: "leg_press_45", series: 4, reps: "12 a 15", cargaKg: 80, concluido: false }
-          ]
-        }
-      ]
-    },
-    diarioHoje: [
-      { refeicao: "Café da Manhã", alimentoId: "ovos_mexidos", qtd: 3, calorias: 210, prot: 18, carb: 2, fat: 15 },
-      { refeicao: "Almoço", alimentoId: "peito_frango_grelhado", qtd: 2, calorias: 320, prot: 62, carb: 0, fat: 6 }
-    ]
-  }
-];
+// 3. BASE DE DADOS DOS ALUNOS (Zerada para cadastros reais via Google Forms)
+const INITIAL_STUDENTS = [];
 
 // Gerenciador de Estado no LocalStorage
 class DatabaseManager {
   constructor() {
-    this.storageKey = "consultoria_fitness_db_v2";
+    this.storageKey = "consultoria_fitness_db_v3";
     this.init();
   }
 
   init() {
+    // Remover resíduos de versões de teste com dados fictícios
+    localStorage.removeItem("consultoria_fitness_db_v1");
+    localStorage.removeItem("consultoria_fitness_db_v2");
+
     let raw = localStorage.getItem(this.storageKey);
-    // Migração de v1 para v2 se necessário
-    if (!raw && localStorage.getItem("consultoria_fitness_db_v1")) {
-      raw = localStorage.getItem("consultoria_fitness_db_v1");
-    }
 
     if (!raw) {
       this.save({
-        students: INITIAL_STUDENTS,
+        students: [],
         exerciseLibrary: EXERCISE_LIBRARY,
         foodDatabase: TACO_FOOD_DATABASE,
         currentUserRole: "professor",
-        activeStudentId: "aluno_raian"
+        activeStudentId: null
       });
     } else {
       try {
         const data = JSON.parse(raw);
-        let updated = false;
-        
-        // Garante que todo novo aluno presente em INITIAL_STUDENTS seja inserido automaticamente
-        INITIAL_STUDENTS.forEach(initStudent => {
-          if (!data.students || !data.students.some(s => s.id === initStudent.id)) {
-            if (!data.students) data.students = [];
-            data.students.push(initStudent);
-            updated = true;
-          }
-        });
-
-        if (updated || !localStorage.getItem(this.storageKey)) {
-          this.save(data);
+        // Filtrar e expurgar qualquer ID residual fictício de teste
+        const testIds = ["aluno_raian", "aluno_maylon", "aluno_carlos", "aluno_matheus", "aluno_raianderson"];
+        data.students = (data.students || []).filter(s => !testIds.includes(s.id));
+        if (data.students.length === 0) {
+          data.activeStudentId = null;
+        } else if (!data.students.some(s => s.id === data.activeStudentId)) {
+          data.activeStudentId = data.students[0].id;
         }
+        this.save(data);
       } catch (e) {
         this.resetToDefault();
       }
@@ -739,12 +511,14 @@ class DatabaseManager {
         });
       });
 
-      if (updatedStudents.length > 0) {
-        currentData.students = updatedStudents;
-        this.save(currentData);
-        return { success: true, count: updatedStudents.length };
+      currentData.students = updatedStudents;
+      if (updatedStudents.length === 0) {
+        currentData.activeStudentId = null;
+      } else if (!currentData.students.some(s => s.id === currentData.activeStudentId)) {
+        currentData.activeStudentId = currentData.students[0].id;
       }
-      return { success: false, error: "Nenhum aluno válido encontrado." };
+      this.save(currentData);
+      return { success: true, count: updatedStudents.length };
     } catch (err) {
       console.warn("Falha no sync com GViz:", err);
       return { success: false, error: err.message };
@@ -753,11 +527,11 @@ class DatabaseManager {
 
   resetToDefault() {
     this.save({
-      students: INITIAL_STUDENTS,
+      students: [],
       exerciseLibrary: EXERCISE_LIBRARY,
       foodDatabase: TACO_FOOD_DATABASE,
       currentUserRole: "professor",
-      activeStudentId: "aluno_raian"
+      activeStudentId: null
     });
   }
 }
