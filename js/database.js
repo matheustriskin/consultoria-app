@@ -399,14 +399,40 @@ class DatabaseManager {
   }
 
   init() {
-    if (!localStorage.getItem(this.storageKey)) {
+    let raw = localStorage.getItem(this.storageKey);
+    // Migração de v1 para v2 se necessário
+    if (!raw && localStorage.getItem("consultoria_fitness_db_v1")) {
+      raw = localStorage.getItem("consultoria_fitness_db_v1");
+    }
+
+    if (!raw) {
       this.save({
         students: INITIAL_STUDENTS,
         exerciseLibrary: EXERCISE_LIBRARY,
         foodDatabase: TACO_FOOD_DATABASE,
-        currentUserRole: "professor", // 'professor' ou 'aluno'
-        activeStudentId: "aluno_raian" // aluno selecionado
+        currentUserRole: "professor",
+        activeStudentId: "aluno_raian"
       });
+    } else {
+      try {
+        const data = JSON.parse(raw);
+        let updated = false;
+        
+        // Garante que todo novo aluno presente em INITIAL_STUDENTS seja inserido automaticamente
+        INITIAL_STUDENTS.forEach(initStudent => {
+          if (!data.students || !data.students.some(s => s.id === initStudent.id)) {
+            if (!data.students) data.students = [];
+            data.students.push(initStudent);
+            updated = true;
+          }
+        });
+
+        if (updated || !localStorage.getItem(this.storageKey)) {
+          this.save(data);
+        }
+      } catch (e) {
+        this.resetToDefault();
+      }
     }
   }
 

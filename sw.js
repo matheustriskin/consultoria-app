@@ -1,5 +1,5 @@
-// Service Worker para Consultoria Esportiva PWA
-const CACHE_NAME = 'consultoria-v1';
+// Service Worker para Consultoria Esportiva PWA - v3
+const CACHE_NAME = 'consultoria-v3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -7,7 +7,9 @@ const ASSETS_TO_CACHE = [
   './js/database.js',
   './js/visuals.js',
   './js/app.js',
-  './manifest.json'
+  './manifest.json',
+  './assets/icon-192.png',
+  './assets/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -34,11 +36,11 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Estratégia Network-First para arquivos de código (sempre pega o mais novo na internet)
 self.addEventListener('fetch', (event) => {
-  // Estratégia Stale-While-Revalidate
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
+    fetch(event.request)
+      .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -46,8 +48,8 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => cachedResponse);
-      return cachedResponse || fetchPromise;
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
+
