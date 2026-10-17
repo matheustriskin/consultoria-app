@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Consultoria Esportiva | Plataforma de Treino & Nutrição</title>
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#090d16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Consultoria">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icon-192.png">
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Estilos Customizados -->
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <!-- TOPBAR COM IDENTIDADE VISUAL E CHAVEADOR DE PAPÉIS (PROFESSOR / ALUNO) -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <div class="brand-title">Consultoria Esportiva</div>
+        <div class="brand-subtitle">Matheus Santana • Nutrição & Treino</div>
+      </div>
+    </div>
+
+    <!-- CHAVEADOR DE PAPÉIS (SIMULAÇÃO DE LOGIN SEGURO) -->
+    <div class="role-switcher">
+      <button class="role-btn active" data-role="professor">
+        <span>👨‍🏫</span> Modo Professor
+      </button>
+      <button class="role-btn" data-role="aluno">
+        <span>📱</span> Modo Aluno
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTAINER PRINCIPAL -->
+  <main class="app-container">
+    <!-- ABAS DINÂMICAS CONFORME O PAPEL -->
+    <nav class="nav-tabs" id="navTabs">
+      <!-- Injetado dinamicamente via app.js -->
+    </nav>
+
+    <!-- CONTEÚDO PRINCIPAL (SPA) -->
+    <div id="mainContent">
+      <!-- Renderizado via app.js -->
+    </div>
+  </main>
+
+  <!-- SCRIPTS DA APLICAÇÃO -->
+  <script src="js/database.js"></script>
+  <script src="js/visuals.js"></script>
+  <script src="js/app.js"></script>
+
+  <!-- REGISTRO DO SERVICE WORKER (PWA) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          console.log('✅ Service Worker PWA ativo com sucesso!', reg.scope);
+        }).catch(err => {
+          console.log('⚠️ Falha ao registrar Service Worker:', err);
+        });
+      });
+    }
+  </script>
+
+</body>
+</html>
