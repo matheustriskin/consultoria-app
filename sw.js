@@ -1,18 +1,18 @@
 // Service Worker para Consultoria Esportiva PWA - v8 (Auto-Update e Cache Clean)
-const CACHE_NAME = 'consultoria-v8';
+const CACHE_NAME = 'consultoria-v9';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './css/app.css?v=8',
-  './js/database.js?v=8',
-  './js/visuals.js?v=8',
-  './js/app.js?v=8',
-  './manifest.json?v=8',
-  './assets/logo.jpg?v=8',
-  './assets/icon-192.png?v=8',
-  './assets/icon-512.png?v=8',
-  './assets/apple-touch-icon.png?v=8',
-  './assets/favicon.png?v=8'
+  './css/app.css?v=9',
+  './js/database.js?v=9',
+  './js/visuals.js?v=9',
+  './js/app.js?v=9',
+  './manifest.json?v=9',
+  './assets/logo.jpg?v=9',
+  './assets/icon-192.png?v=9',
+  './assets/icon-512.png?v=9',
+  './assets/apple-touch-icon.png?v=9',
+  './assets/favicon.png?v=9'
 ];
 
 self.addEventListener('install', (event) => {

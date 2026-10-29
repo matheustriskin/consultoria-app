@@ -831,19 +831,81 @@ const App = {
   // ==========================================
   // BIBLIOTECA DE EXERCÍCIOS
   // ==========================================
+  _exerciseGroupFilter: "Todos",
+
+  setExerciseFilter(grupo) {
+    this._exerciseGroupFilter = grupo;
+    const viewContainer = document.getElementById("viewContainer");
+    if (viewContainer) {
+      viewContainer.innerHTML = this.renderExerciseLibraryView();
+    }
+  },
+
+  filtrarBibliotecaExercicios(query) {
+    const q = (query || "").toLowerCase().trim();
+    const cards = document.querySelectorAll(".grid-exercises .card-exercise-item");
+    cards.forEach(card => {
+      const text = (card.getAttribute("data-search") || "").toLowerCase();
+      if (!q || text.includes(q)) {
+        card.style.display = "flex";
+      } else {
+        card.style.display = "none";
+      }
+    });
+  },
+
   renderExerciseLibraryView() {
-    const list = db.getExerciseLibrary();
+    const allExercises = db.getExerciseLibrary();
+    const activeGrupo = this._exerciseGroupFilter || "Todos";
+    const filteredList = activeGrupo === "Todos" 
+      ? allExercises 
+      : allExercises.filter(ex => ex.grupo.toLowerCase().includes(activeGrupo.toLowerCase()) || activeGrupo.toLowerCase().includes(ex.grupo.toLowerCase()));
+
+    const grupos = ["Todos", "Abdômen", "Antebraços", "Costas", "Ombro", "Panturrilha", "Peitoral", "Posterior de Coxa", "Quadríceps", "Trapézio", "Cardio", "Braços"];
+
     return `
       <div class="card">
-        <div class="card-title">
-          <span>🏋️ Biblioteca Biomecânica de Exercícios (${list.length})</span>
+        <div class="card-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <span>📚 Biblioteca Biomecânica de Exercícios (${allExercises.length})</span>
+          <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: normal;">Exibindo ${filteredList.length}</span>
         </div>
         <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
-          Demonstração com animações em loop dos movimentos e orientações posturais de execução.
+          Demonstração em loop animado com orientações posturais biomecânicas e dicas do Professor Raian Bispo.
         </p>
-        <div class="grid-exercises" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 18px;">
-          ${list.map(ex => `
-            <div class="card" style="padding: 12px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; border: 1px solid rgba(255,255,255,0.08); background: rgba(15, 23, 42, 0.6); display: flex; flex-direction: column;" 
+
+        <!-- BARRA DE PESQUISA EM TEMPO REAL -->
+        <div style="margin-top: 14px; position: relative;">
+          <input type="text" 
+                 class="input-field" 
+                 placeholder="🔍 Pesquisar exercício, músculo ou equipamento..." 
+                 style="padding: 10px 14px; font-size: 0.9rem;"
+                 oninput="App.filtrarBibliotecaExercicios(this.value)">
+        </div>
+
+        <!-- FILTROS POR GRUPO MUSCULAR -->
+        <div style="display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; margin-top: 8px; -webkit-overflow-scrolling: touch;">
+          ${grupos.map(g => {
+            const count = g === "Todos" 
+              ? allExercises.length 
+              : allExercises.filter(e => e.grupo.toLowerCase().includes(g.toLowerCase()) || g.toLowerCase().includes(e.grupo.toLowerCase())).length;
+            const isActive = g === activeGrupo;
+            return `
+              <button type="button" 
+                      class="btn btn-sm ${isActive ? 'btn-primary' : 'btn-outline-sm'}" 
+                      style="white-space: nowrap; font-size: 0.78rem; padding: 6px 14px; border-radius: 20px; font-weight: ${isActive ? '700' : '500'}; cursor: pointer;"
+                      onclick="App.setExerciseFilter('${g}')">
+                ${g} (${count})
+              </button>
+            `;
+          }).join("")}
+        </div>
+
+        <!-- GRID DE EXERCÍCIOS -->
+        <div class="grid-exercises" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 14px;">
+          ${filteredList.map(ex => `
+            <div class="card card-exercise-item" 
+                 data-search="${(ex.nome + ' ' + ex.grupo + ' ' + (ex.sinergistas || '') + ' ' + (ex.equipamento || '')).toLowerCase()}"
+                 style="padding: 12px; cursor: pointer; transition: transform 0.2s, border-color 0.2s; border: 1px solid rgba(255,255,255,0.08); background: rgba(15, 23, 42, 0.6); display: flex; flex-direction: column;" 
                  onmouseover="this.style.borderColor='#3b82f6'; this.style.transform='translateY(-2px)';" 
                  onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'; this.style.transform='none';"
                  onclick="App.abrirModalExercicio('${ex.id}')">

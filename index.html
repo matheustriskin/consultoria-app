@@ -10,10 +10,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Raian Bispo">
-  <link rel="manifest" href="manifest.json?v=8">
-  <link rel="icon" type="image/png" href="assets/favicon.png?v=8">
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=8">
-  <link rel="shortcut icon" href="assets/favicon.png?v=8">
+  <link rel="manifest" href="manifest.json?v=9">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=9">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=9">
+  <link rel="shortcut icon" href="assets/favicon.png?v=9">
   
   <!-- Google Fonts: Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,14 +21,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Estilos Customizados -->
-  <link rel="stylesheet" href="css/app.css?v=8">
+  <link rel="stylesheet" href="css/app.css?v=9">
 </head>
 <body>
 
   <!-- TOPBAR COM IDENTIDADE VISUAL E ÁREA DE SESSÃO DO USUÁRIO -->
   <header class="topbar">
     <div class="brand">
-      <img src="assets/logo.jpg?v=8" alt="Raian Bispo Logo" class="brand-logo-img">
+      <img src="assets/logo.jpg?v=9" alt="Raian Bispo Logo" class="brand-logo-img">
       <div>
         <div class="brand-title">Raian Bispo</div>
         <div class="brand-subtitle">Personal Trainer • A Meta é Logo Ali</div>
@@ -55,15 +55,15 @@
   </main>
 
   <!-- SCRIPTS DA APLICAÇÃO -->
-  <script src="js/database.js?v=8"></script>
-  <script src="js/visuals.js?v=8"></script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/database.js?v=9"></script>
+  <script src="js/visuals.js?v=9"></script>
+  <script src="js/app.js?v=9"></script>
 
   <!-- REGISTRO DO SERVICE WORKER (PWA) COM AUTO-UPDATE -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js?v=8').then(reg => {
+        navigator.serviceWorker.register('sw.js?v=9').then(reg => {
           reg.update(); // Força verificar nova versão no servidor
           console.log('✅ Service Worker PWA v8 ativo com sucesso!', reg.scope);
         }).catch(err => {
